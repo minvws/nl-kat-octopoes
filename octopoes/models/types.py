@@ -14,11 +14,17 @@ from octopoes.models.ooi.dns.records import (
     DNSNSRecord,
     DNSSOARecord,
     DNSCNAMERecord,
+    NXDOMAIN,
+)
+from octopoes.models.ooi.email_security import (
     DNSSPFMechanismIP,
     DNSSPFMechanismHostname,
     DNSSPFMechanismNetBlock,
     DNSSPFRecord,
-    NXDOMAIN,
+    DMARCTXTRecord,
+    DKIMExists,
+    DKIMKey,
+    DKIMSelector,
 )
 from octopoes.models.ooi.dns.zone import Hostname, DNSZone, ResolvedHostname
 from octopoes.models.ooi.findings import (
@@ -86,6 +92,16 @@ SoftwareType = Union[Software, SoftwareInstance]
 WebType = Union[
     Website, URL, HostnameHTTPURL, IPAddressHTTPURL, HTTPResource, HTTPHeader, HTTPHeaderURL, HTTPHeaderHostname
 ]
+EmailSecurityType = Union[
+    DNSSPFRecord,
+    DNSSPFMechanismIP,
+    DNSSPFMechanismHostname,
+    DNSSPFMechanismNetBlock,
+    DMARCTXTRecord,
+    DKIMExists,
+    DKIMSelector,
+    DKIMKey,
+]
 
 OOIType = Union[
     CertificateType,
@@ -96,10 +112,7 @@ OOIType = Union[
     ServiceType,
     SoftwareType,
     WebType,
-    DNSSPFMechanismIP,
-    DNSSPFMechanismHostname,
-    DNSSPFMechanismNetBlock,
-    DNSSPFRecord,
+    EmailSecurityType,
 ]
 
 
