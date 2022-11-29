@@ -16,9 +16,6 @@ class DNSSPFRecord(OOI):
     ptr: Optional[str]
     dns_txt_record: Reference = ReferenceField(DNSTXTRecord)
 
-    include: Optional[List[Reference]] = ReferenceField(Hostname, default=None)
-    redirect: Optional[List[Reference]] = ReferenceField(Hostname, default=None)
-
     _natural_key_attrs = ["dns_txt_record", "value"]
     _reverse_relation_names = {
         "dns_txt_record": "dns_spf_record",
@@ -32,7 +29,7 @@ class DNSSPFRecord(OOI):
 
     @classmethod
     def format_reference_human_readable(cls, reference: Reference) -> str:
-        return f"SPF Record of {reference.tokenized.dns_txt_record.mock_hostname.name}"
+        return f"SPF Record of {reference.tokenized.dns_txt_record.hostname.name}"
 
 
 class DNSSPFMechanism(OOI):
@@ -55,7 +52,7 @@ class DNSSPFMechanismIP(DNSSPFMechanism):
     @classmethod
     def format_reference_human_readable(cls, reference: Reference) -> str:
         return (
-            f"SPF Record of {reference.tokenized.spf_record.dns_txt_record.mock_hostname.name} to "
+            f"SPF Record of {reference.tokenized.spf_record.dns_txt_record.hostname.name} to "
             + f"{reference.tokenized.qualifier} {reference.tokenized.ip.address}"
         )
 
@@ -74,7 +71,7 @@ class DNSSPFMechanismHostname(DNSSPFMechanism):
     @classmethod
     def format_reference_human_readable(cls, reference: Reference) -> str:
         return (
-            f"SPF Record of {reference.tokenized.spf_record.dns_txt_record.mock_hostname.name} "
+            f"SPF Record of {reference.tokenized.spf_record.dns_txt_record.hostname.name} "
             + f"to {reference.tokenized.qualifier} {reference.tokenized.hostname.name}"
         )
 
@@ -93,7 +90,7 @@ class DNSSPFMechanismNetBlock(DNSSPFMechanism):
     @classmethod
     def format_reference_human_readable(cls, reference: Reference) -> str:
         return (
-            f"SPF Record of {reference.tokenized.spf_record.dns_txt_record.mock_hostname.name} to "
+            f"SPF Record of {reference.tokenized.spf_record.dns_txt_record.hostname.name} to "
             + f"{reference.tokenized.qualifier} "
             + f"{reference.tokenized.netblock.start_ip}/{reference.tokenized.netblock.mask}"
         )
