@@ -11,7 +11,4 @@ def run(
 ) -> Iterator[OOI]:
 
     if input_ooi.value.startswith("v=spf1"):
-        yield DNSSPFRecord(
-            dns_txt_record=input_ooi.reference,
-            value=input_ooi.value,
-            ttl=input_ooi.ttl)
+        yield DNSSPFRecord(dns_txt_record=input_ooi.reference, value=input_ooi.value, ttl=input_ooi.ttl)
