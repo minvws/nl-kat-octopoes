@@ -61,6 +61,8 @@ class OctopoesAPIConnector:
     """
 
     def __init__(self, base_uri: str, client: str):
+        self.base_uri = base_uri
+        self.client = client
         self.session = OctopoesAPISession(base_uri, client)
 
     def health(self) -> ServiceHealth:
@@ -131,3 +133,9 @@ class OctopoesAPIConnector:
     def delete(self, reference: Reference, valid_time: Optional[datetime] = None) -> None:
         params = {"reference": str(reference), "valid_time": valid_time}
         self.session.delete("/", params=params)
+
+    def create_node(self):
+        self.session.post("/node")
+
+    def delete_node(self):
+        self.session.delete("/node")

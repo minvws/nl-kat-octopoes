@@ -1,3 +1,4 @@
+import json
 import logging
 from datetime import timezone, datetime
 from enum import Enum
@@ -102,6 +103,24 @@ class XTDBHTTPClient:
 
         self._verify_response(res)
         self.await_transaction(res.json()["txId"])
+
+    def create_node(self, name: str) -> None:
+        res = self._session.post(
+            "/create-node",
+            data=json.dumps({"node": name}),
+            headers={"Content-Type": "application/json"},
+        )
+
+        self._verify_response(res)
+
+    def delete_node(self, name: str) -> None:
+        res = self._session.post(
+            "/delete-node",
+            data=json.dumps({"node": name}),
+            headers={"Content-Type": "application/json"},
+        )
+
+        self._verify_response(res)
 
 
 class XTDBSession:

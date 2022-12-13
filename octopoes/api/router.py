@@ -2,9 +2,10 @@ import uuid
 from datetime import datetime, timezone
 from logging import getLogger
 from typing import List, Optional, Set, Type
+from http import HTTPStatus
 
-from fastapi import APIRouter, Depends, Query, Path
-from requests import RequestException
+from fastapi import APIRouter, Depends, HTTPException, Query, Path
+from requests import RequestException, HTTPError
 
 from octopoes.api.models import ServiceHealth, ValidatedObservation, ValidatedDeclaration
 from octopoes.config.settings import Settings
@@ -19,7 +20,7 @@ from octopoes.models.pagination import Paginated
 from octopoes.models.tree import ReferenceTree
 from octopoes.models.types import type_by_name
 from octopoes.version import __version__
-from octopoes.xtdb.client import XTDBSession
+from octopoes.xtdb.client import XTDBHTTPClient, XTDBSession
 
 logger = getLogger(__name__)
 router = APIRouter(prefix="/{client}")
@@ -238,3 +239,27 @@ def recalculate_scan_profiles(
 ) -> None:
     octopoes.recalculate_scan_profiles(valid_time)
     xtdb_session_.commit()
+
+
+@router.post("/node")
+def create_node(
+    client: str = Depends(extract_client),
+    settings: Settings = Depends(settings),
+) -> None:
+    xtdb_client = XTDBHTTPClient(f"{settings.xtdb_uri}/_xtdb")
+    xtdb_client.create_node(client)
+
+
+@router.delete("/node")
+def delete_node(
+    client: str = Depends(extract_client),
+    settings: Settings = Depends(settings),
+) -> None:
+    xtdb_client = XTDBHTTPClient(f"{settings.xtdb_uri}/_xtdb")
+    try:
+        xtdb_client.delete_node(client)
+    except HTTPError as e:
+        # If
+        if e.response.status_code == HTTPStatus.NOT_FOUND:
+            raise HTTPException(status_code=404, detail="Node does not exist")
+        raise
