@@ -27,7 +27,7 @@ jobs:
         with:
           run: packaging/scripts/build-debian-package.sh
           registry: ghcr.io
-          image: ghcr.io/minvws/nl-rt-tim-abang-kat-${{ matrix.dist }}-build-image:latest
+          image: ghcr.io/minvws/nl-kat-${{ matrix.dist }}-build-image:latest
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
           options: -v ${{ github.workspace }}:/app
