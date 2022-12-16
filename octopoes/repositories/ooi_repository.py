@@ -12,8 +12,14 @@ from requests import HTTPError
 from octopoes.config.settings import XTDBType
 from octopoes.events.events import OOIDBEvent, OperationType
 from octopoes.events.manager import EventManager
-from octopoes.models import OOI, Reference, ScanLevel, DEFAULT_SCAN_LEVEL_FILTER, DEFAULT_SCAN_PROFILE_TYPE_FILTER, \
-    ScanProfileType
+from octopoes.models import (
+    OOI,
+    Reference,
+    ScanLevel,
+    DEFAULT_SCAN_LEVEL_FILTER,
+    DEFAULT_SCAN_PROFILE_TYPE_FILTER,
+    ScanProfileType,
+)
 from octopoes.models.exception import ObjectNotFoundException
 from octopoes.models.pagination import Paginated
 from octopoes.models.path import Path, get_paths_to_neighours, Direction, Segment
@@ -231,7 +237,9 @@ class XTDBOOIRepository(OOIRepository):
                 """.format(
             object_types=" ".join(map(lambda t: str_val(t.get_object_type()), types)),
             scan_levels=" ".join([str(scan_level.value) for scan_level in scan_levels]),
-            scan_profile_types=" ".join([str_val(scan_profile_type.value) for scan_profile_type in scan_profile_types]),
+            scan_profile_types=" ".join(
+                [str_val(scan_profile_type.value) for scan_profile_type in scan_profile_types]
+            ),
         )
 
         res_count = self.session.client.query(count_query, valid_time)
@@ -266,7 +274,9 @@ class XTDBOOIRepository(OOIRepository):
         """.format(
             object_types=" ".join(map(lambda t: str_val(t.get_object_type()), types)),
             scan_levels=" ".join([str(scan_level.value) for scan_level in scan_levels]),
-            scan_profile_types=" ".join([str_val(scan_profile_type.value) for scan_profile_type in scan_profile_types]),
+            scan_profile_types=" ".join(
+                [str_val(scan_profile_type.value) for scan_profile_type in scan_profile_types]
+            ),
             limit=limit,
             offset=offset,
         )

@@ -20,7 +20,9 @@ from octopoes.models import (
     InheritedScanProfile,
     format_id_short,
     ScanLevel,
-    DEFAULT_SCAN_LEVEL_FILTER, DEFAULT_SCAN_PROFILE_TYPE_FILTER, ScanProfileType,
+    DEFAULT_SCAN_LEVEL_FILTER,
+    DEFAULT_SCAN_PROFILE_TYPE_FILTER,
+    ScanProfileType,
 )
 from octopoes.models.exception import ObjectNotFoundException
 from octopoes.models.origin import Origin, OriginType, OriginParameter
