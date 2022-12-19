@@ -40,6 +40,8 @@ class Declaration(BaseModel):
 
     ooi: OOI
     valid_time: datetime
+    method: Optional[str]
+    task_id: Optional[str]
 
 
 class ScanProfileDeclaration(BaseModel):
@@ -61,3 +63,5 @@ class ValidatedDeclaration(BaseModel):
 
     ooi: OOIType
     valid_time: TimezoneAwareDatetime
+    method: Optional[str]
+    task_id: Optional[str]
