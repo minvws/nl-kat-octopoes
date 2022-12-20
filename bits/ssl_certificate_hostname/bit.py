@@ -1,6 +1,8 @@
 from bits.definitions import BitParameterDefinition, BitDefinition
-from octopoes.models.ooi.certificate import Certificate, CertificateSubjectAlternativeName, \
-    SubjectAlternativeNameHostname
+from octopoes.models.ooi.certificate import (
+    Certificate,
+    SubjectAlternativeNameHostname,
+)
 from octopoes.models.ooi.web import Website
 
 BIT = BitDefinition(

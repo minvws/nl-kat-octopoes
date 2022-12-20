@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
-from typing import Optional, Literal, Union
+from typing import Optional, Literal
 
 from octopoes.models import OOI, Reference
 from octopoes.models.ooi.dns.zone import Hostname
@@ -29,6 +29,7 @@ class Certificate(OOI):
         "Certificate", max_issue_scan_level=1, max_inherit_scan_level=0, default=None
     )
     serial_number: str
+    expires_in: Optional[timedelta]
 
     _natural_key_attrs = ["issuer", "serial_number"]
 
@@ -84,27 +85,7 @@ class SubjectAlternativeNameQualifier(SubjectAlternativeName):
         return reference.tokenized.name
 
 
-# todo: remove
-class CertificateSubjectAlternativeName(OOI):
-    object_type: Literal["CertificateSubjectAlternativeName"] = "CertificateSubjectAlternativeName"
-
-    certificate: Reference = ReferenceField(Certificate, max_issue_scan_level=0, max_inherit_scan_level=1)
-    hostname: Reference = ReferenceField(Hostname, max_issue_scan_level=1, max_inherit_scan_level=0)
-
-    _natural_key_attrs = ["certificate", "hostname"]
-
-    _reverse_relation_names = {"certificate": "subject_alternative_names", "hostname": "certificates"}
-
-    @classmethod
-    def format_reference_human_readable(cls, reference: Reference) -> str:
-        return (
-            f"{reference.tokenized.certificate.subject} ({reference.tokenized.certificate.issuer}) contains "
-            + f"{reference.tokenized.hostname.name}"
-        )
-
-
 Certificate.update_forward_refs()
-CertificateSubjectAlternativeName.update_forward_refs()  # todo: remove
 SubjectAlternativeNameHostname.update_forward_refs()
 SubjectAlternativeNameIP.update_forward_refs()
 SubjectAlternativeNameQualifier.update_forward_refs()
