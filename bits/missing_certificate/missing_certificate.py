@@ -10,6 +10,9 @@ def run(
     additional_oois,
 ) -> Iterator[OOI]:
 
+    if input_ooi.ip_service.tokenized.service.name.lower() != "https":
+        return
+
     if input_ooi.certificate is None:
         ft = KATFindingType(id="KAT-NO-CERTIFICATE")
         yield ft
