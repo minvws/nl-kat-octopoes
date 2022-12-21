@@ -20,6 +20,9 @@ def get_xtdb_client(base_uri: str, client: str, xtdb_type: XTDBType) -> XTDBHTTP
         parts.append("_xtdb")
         parts.append(client)
     else:
+        # Before we had xtdb-multinode we supported multiple organizations by
+        # running multiple XTDB with a reverse proxy in front. This code can be
+        # removed once we no longer support that setup.
         if client != "_dev":
             parts.append(client)
         parts.append(f"_{xtdb_type.value}")

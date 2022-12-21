@@ -4,7 +4,7 @@ from logging import getLogger
 from typing import List, Optional, Set, Type
 from http import HTTPStatus
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Path
+from fastapi import APIRouter, Depends, HTTPException, Query, Path, status
 from requests import RequestException, HTTPError
 
 from octopoes.api.models import ServiceHealth, ValidatedObservation, ValidatedDeclaration
@@ -261,5 +261,5 @@ def delete_node(
     except HTTPError as e:
         # If
         if e.response.status_code == HTTPStatus.NOT_FOUND:
-            raise HTTPException(status_code=404, detail="Node does not exist")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Node does not exist")
         raise

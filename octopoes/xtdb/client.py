@@ -107,8 +107,7 @@ class XTDBHTTPClient:
     def create_node(self, name: str) -> None:
         res = self._session.post(
             "/create-node",
-            data=json.dumps({"node": name}),
-            headers={"Content-Type": "application/json"},
+            json={"node": name}
         )
 
         self._verify_response(res)
@@ -116,8 +115,7 @@ class XTDBHTTPClient:
     def delete_node(self, name: str) -> None:
         res = self._session.post(
             "/delete-node",
-            data=json.dumps({"node": name}),
-            headers={"Content-Type": "application/json"},
+            json={"node": name},
         )
 
         self._verify_response(res)
