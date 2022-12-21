@@ -105,10 +105,7 @@ class XTDBHTTPClient:
         self.await_transaction(res.json()["txId"])
 
     def create_node(self, name: str) -> None:
-        res = self._session.post(
-            "/create-node",
-            json={"node": name}
-        )
+        res = self._session.post("/create-node", json={"node": name})
 
         self._verify_response(res)
 
