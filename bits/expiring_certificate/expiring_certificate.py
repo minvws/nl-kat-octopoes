@@ -10,7 +10,7 @@ THRESHOLD = datetime.timedelta(weeks=2)
 
 
 def run(input_ooi: Certificate, additional_oois: List[Website]) -> Iterator[OOI]:
-    # applies only to certificates assigned to websitess
+    # only applies to OOIs referencing the certificate
     if additional_oois:
         if input_ooi.expired:
             ft = KATFindingType(id="KAT-CERTIFICATE-EXPIRED")
