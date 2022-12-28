@@ -29,6 +29,7 @@ from octopoes.models.ooi.findings import (
     RetireJSFindingType,
     SnykFindingType,
 )
+from octopoes.models.ooi.monitoring import Incident, Application
 from octopoes.models.ooi.network import (
     Network,
     IPAddressV4,
@@ -86,6 +87,7 @@ SoftwareType = Union[Software, SoftwareInstance]
 WebType = Union[
     Website, URL, HostnameHTTPURL, IPAddressHTTPURL, HTTPResource, HTTPHeader, HTTPHeaderURL, HTTPHeaderHostname
 ]
+MonitoringType = Union[Application, Incident]
 
 OOIType = Union[
     CertificateType,
@@ -100,6 +102,7 @@ OOIType = Union[
     DNSSPFMechanismHostname,
     DNSSPFMechanismNetBlock,
     DNSSPFRecord,
+    MonitoringType,
 ]
 
 
