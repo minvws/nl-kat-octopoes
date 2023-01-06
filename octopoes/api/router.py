@@ -271,7 +271,6 @@ def delete_node(
     try:
         xtdb_client.delete_node(client)
     except HTTPError as e:
-        # If
         if e.response.status_code == HTTPStatus.NOT_FOUND:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Node does not exist")
         raise
