@@ -109,15 +109,13 @@ def test_get_scan_profiles(requests_mock, patch_pika):
 
 
 def test_create_node():
-    response = client.post("/_dev/node")
-    assert response.status_code == 500
-    assert response.json() == {"detail": "Creating nodes requires XTDB_MULTINODE"}
+    with pytest.raises(Exception, match="Creating nodes requires XTDB_MULTINODE"):
+        client.post("/_dev/node")
 
 
 def test_delete_node():
-    response = client.delete("/_dev/node")
-    assert response.status_code == 500
-    assert response.json() == {"detail": "Deleting nodes requires XTDB_MULTINODE"}
+    with pytest.raises(Exception, match="Deleting nodes requires XTDB_MULTINODE"):
+        client.delete("/_dev/node")
 
 
 def test_create_node_multinode(requests_mock, xtdbtype_multinode):
