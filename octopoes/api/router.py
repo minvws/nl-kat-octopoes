@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Path, status
 from requests import RequestException, HTTPError
 
 from octopoes.api.models import ServiceHealth, ValidatedObservation, ValidatedDeclaration
-from octopoes.config.settings import Settings
+from octopoes.config.settings import Settings, XTDBType
 from octopoes.core.app import bootstrap_octopoes, get_xtdb_client
 from octopoes.core.service import OctopoesService
 from octopoes.models import OOI, Reference, ScanProfileBase, ScanProfile, ScanLevel, DEFAULT_SCAN_LEVEL_FILTER
@@ -244,6 +244,8 @@ def create_node(
     client: str = Depends(extract_client),
     settings: Settings = Depends(settings),
 ) -> None:
+    if settings.xtdb_type != XTDBType.XTDB_MULTINODE:
+        raise Exception("Creating nodes requires XTDB_MULTINODE")
     xtdb_client = XTDBHTTPClient(f"{settings.xtdb_uri}/_xtdb")
     xtdb_client.create_node(client)
 
@@ -253,6 +255,8 @@ def delete_node(
     client: str = Depends(extract_client),
     settings: Settings = Depends(settings),
 ) -> None:
+    if settings.xtdb_type != XTDBType.XTDB_MULTINODE:
+        raise Exception("Deleting nodes requires XTDB_MULTINODE")
     xtdb_client = XTDBHTTPClient(f"{settings.xtdb_uri}/_xtdb")
     try:
         xtdb_client.delete_node(client)
