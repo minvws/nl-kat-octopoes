@@ -1,12 +1,16 @@
+import hashlib
 from abc import ABC
+from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Literal, Optional
+from http.cookies import SimpleCookie, CookieError
+from typing import Literal, Optional, Iterator
 
 from pydantic import AnyUrl
 
 from octopoes.models import OOI, Reference
 from octopoes.models.ooi.certificate import Certificate
 from octopoes.models.ooi.dns.zone import Hostname
+from octopoes.models.ooi.findings import Finding
 from octopoes.models.ooi.network import IPAddress, Network
 from octopoes.models.ooi.service import IPService
 from octopoes.models.persistence import ReferenceField
@@ -196,3 +200,111 @@ class HTTPHeaderHostname(OOI):
         address = t.resource.website.ip_service.ip_port.address.address
 
         return f"{t.key} @ {web_url} @ {address} contains {str(reference.tokenized.hostname.name)}"
+
+
+class HTTPCookie(OOI):
+    # https://datatracker.ietf.org/doc/html/rfc6265
+    # https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies
+    object_type: Literal["HTTPCookie"] = "HTTPCookie"
+
+    _natural_key_attrs = [
+        "name",
+        "domain",
+        "path",
+    ]  # does not include network, as there is not concept of a network only hostnames in the browsers cookie handling.
+
+    # httpheader: Reference(ReferenceField(HTTPHeaderURL, max_inherit_scan_level=4))  # ideally we should keep track of
+    # which header was parsed into this cookie object
+    # https://datatracker.ietf.org/doc/html/rfc6265#section-5.3
+    name: str
+    value: str
+    expiry_time: Optional[datetime]
+    # https://datatracker.ietf.org/doc/html/rfc6265#section-5.3 p6
+    domain: Reference = ReferenceField(Hostname, max_inherit_scan_level=4)
+    # https://datatracker.ietf.org/doc/html/rfc6265#section-5.3 p7
+    path: str = "/"
+    creation_time: datetime
+    # last-access-time: # not used in openkat context
+    # https://datatracker.ietf.org/doc/html/rfc6265#section-5.3 p3
+    persistent: bool = False
+    # https://datatracker.ietf.org/doc/html/rfc6265#section-5.3 p6
+    host_only: bool = False
+    # https://datatracker.ietf.org/doc/html/rfc6265#section-5.3 p8
+    secure_only: bool = False
+    # https://datatracker.ietf.org/doc/html/rfc6265#section-5.3 p9
+    http_only: bool = False
+    # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite
+    same_site: bool = False
+    max_age: Optional[int]
+
+    @classmethod
+    def format_reference_human_readable(cls, reference: Reference) -> str:
+        tokenized = reference.tokenized
+        return f"{tokenized.name} @ {tokenized.domain}"
+
+    @classmethod
+    def from_string(cls, response_domain, cookie) -> Iterator[OOI]:
+        now = datetime.now(timezone.utc)
+
+        # https://docs.python.org/3/library/http.cookies.html
+        try:
+            parsed_cookie = SimpleCookie(cookie)
+
+            for name, morsel in parsed_cookie.items():
+                # https://datatracker.ietf.org/doc/html/rfc6265#section-5.3 p6
+                host_only = False
+                if not morsel["domain"]:
+                    host_only = True
+                    morsel["domain"] = response_domain
+
+                # https://datatracker.ietf.org/doc/html/rfc6265#section-5.3 p3
+                persistent = False
+                expires = float("inf")
+                max_age = None
+                if "max-age" in morsel:
+                    persistent = True
+                    try:
+                        max_age = min(
+                            1e8, int(morsel["max-age"])
+                        )  # limit to make sure we dont trip over calculating a date millions of years in the future
+                    except ValueError:
+                        persistent = False
+                    else:
+                        expires = now + timedelta(max_age)
+
+                elif morsel["expires"]:
+                    persistent = True
+                    expires = datetime.strptime(morsel["expires"])
+
+                domain = Reference.from_str(morsel["domain"])  # load or create? todo: fix this
+                yield HTTPCookie(
+                    # httpheader=httpheader,
+                    name=name,
+                    value=morsel.value,
+                    expiry_time=expires,
+                    domain=domain,
+                    path=morsel["path"] or "/",
+                    creation_time=now,
+                    persistent=persistent,
+                    host_only=host_only,
+                    secure_only=morsel["secure"],
+                    http_only=morsel["httponly"],
+                    same_site=morsel["samesite"],
+                    max_age=max_age,
+                )
+
+        except CookieError as cookieerror:
+            yield Finding(cookieerror)  # todo: fix this
+
+
+class RawCookie(OOI):
+    object_type: Literal["RawCookie"] = "RawCookie"
+
+    value: str
+    source: Reference = ReferenceField(HTTPCookie, max_inherit_scan_level=0, max_issue_scan_level=1)
+
+    _natural_key_attrs = ["source", "hash"]
+
+    @property
+    def hash(self):
+        return hashlib.sha256(self.value.encode()).hexdigest()
