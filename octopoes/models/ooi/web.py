@@ -1,3 +1,4 @@
+import hashlib
 from abc import ABC
 from datetime import datetime, timedelta, timezone
 from enum import Enum
@@ -292,3 +293,16 @@ class HTTPCookie(OOI):
 
         except CookieError as cookieerror:
             yield Finding(cookieerror)  # todo: fix this
+
+
+class RawCookie(OOI):
+    object_type: Literal["RawCookie"] = "RawCookie"
+
+    value: str
+    source: Reference = ReferenceField(HTTPCookie, max_inherit_scan_level=0, max_issue_scan_level=1)
+
+    _natural_key_attrs = ["source", "hash"]
+
+    @property
+    def hash(self):
+        return hashlib.sha256(self.value.encode()).hexdigest()
