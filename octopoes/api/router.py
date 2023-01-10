@@ -2,24 +2,33 @@ import uuid
 from datetime import datetime, timezone
 from logging import getLogger
 from typing import List, Optional, Set, Type
+from http import HTTPStatus
 
-from fastapi import APIRouter, Depends, Query, Path
-from requests import RequestException
+from fastapi import APIRouter, Depends, HTTPException, Query, Path, status
+from requests import RequestException, HTTPError
 
 from octopoes.api.models import ServiceHealth, ValidatedObservation, ValidatedDeclaration
-from octopoes.config.settings import Settings
+from octopoes.config.settings import Settings, XTDBType
 from octopoes.core.app import bootstrap_octopoes, get_xtdb_client
 from octopoes.core.service import OctopoesService
-from octopoes.models import OOI, Reference, ScanProfileBase, ScanProfile
+from octopoes.models import (
+    OOI,
+    Reference,
+    ScanProfileBase,
+    ScanProfile,
+    ScanLevel,
+    DEFAULT_SCAN_LEVEL_FILTER,
+    DEFAULT_SCAN_PROFILE_TYPE_FILTER,
+    ScanProfileType,
+)
 from octopoes.models.datetime import TimezoneAwareDatetime
 from octopoes.models.exception import ObjectNotFoundException
-from octopoes.models.filter import FilterOperator
 from octopoes.models.origin import Origin, OriginType
 from octopoes.models.pagination import Paginated
 from octopoes.models.tree import ReferenceTree
 from octopoes.models.types import type_by_name
 from octopoes.version import __version__
-from octopoes.xtdb.client import XTDBSession
+from octopoes.xtdb.client import XTDBHTTPClient, XTDBSession
 
 logger = getLogger(__name__)
 router = APIRouter(prefix="/{client}")
@@ -106,12 +115,12 @@ def list_objects(
     octopoes: OctopoesService = Depends(octopoes_service),
     valid_time: datetime = Depends(extract_valid_time),
     types: Set[Type[OOI]] = Depends(extract_types),
-    scan_level_operator: FilterOperator = FilterOperator.GREATER_THAN_OR_EQUAL_TO,
-    scan_level: int = 0,
+    scan_level: Set[ScanLevel] = Query(DEFAULT_SCAN_LEVEL_FILTER),
+    scan_profile_type: Set[ScanProfileType] = Query(DEFAULT_SCAN_PROFILE_TYPE_FILTER),
     offset: int = 0,
     limit: int = 20,
 ) -> Paginated[OOI]:
-    objects = octopoes.list_ooi(types, valid_time, offset, limit, scan_level_operator, scan_level)
+    objects = octopoes.list_ooi(types, valid_time, offset, limit, scan_level, scan_profile_type)
     return objects
 
 
@@ -238,3 +247,30 @@ def recalculate_scan_profiles(
 ) -> None:
     octopoes.recalculate_scan_profiles(valid_time)
     xtdb_session_.commit()
+
+
+@router.post("/node")
+def create_node(
+    client: str = Depends(extract_client),
+    settings: Settings = Depends(settings),
+) -> None:
+    if settings.xtdb_type != XTDBType.XTDB_MULTINODE:
+        raise Exception("Creating nodes requires XTDB_MULTINODE")
+    xtdb_client = XTDBHTTPClient(f"{settings.xtdb_uri}/_xtdb")
+    xtdb_client.create_node(client)
+
+
+@router.delete("/node")
+def delete_node(
+    client: str = Depends(extract_client),
+    settings: Settings = Depends(settings),
+) -> None:
+    if settings.xtdb_type != XTDBType.XTDB_MULTINODE:
+        raise Exception("Deleting nodes requires XTDB_MULTINODE")
+    xtdb_client = XTDBHTTPClient(f"{settings.xtdb_uri}/_xtdb")
+    try:
+        xtdb_client.delete_node(client)
+    except HTTPError as e:
+        if e.response.status_code == HTTPStatus.NOT_FOUND:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Node does not exist")
+        raise
