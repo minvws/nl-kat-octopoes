@@ -18,6 +18,11 @@ from octopoes.models import (
     EmptyScanProfile,
     DeclaredScanProfile,
     InheritedScanProfile,
+    format_id_short,
+    ScanLevel,
+    DEFAULT_SCAN_LEVEL_FILTER,
+    DEFAULT_SCAN_PROFILE_TYPE_FILTER,
+    ScanProfileType,
 )
 from octopoes.models.exception import ObjectNotFoundException
 from octopoes.models.origin import Origin, OriginType, OriginParameter
@@ -79,8 +84,10 @@ class OctopoesService:
         valid_time: datetime,
         limit: int = 1000,
         offset: int = 0,
+        scan_levels: Set[ScanLevel] = DEFAULT_SCAN_LEVEL_FILTER,
+        scan_profile_types: Set[ScanProfileType] = DEFAULT_SCAN_PROFILE_TYPE_FILTER,
     ) -> Paginated[OOI]:
-        paginated = self.ooi_repository.list(types, valid_time, limit, offset)
+        paginated = self.ooi_repository.list(types, valid_time, limit, offset, scan_levels, scan_profile_types)
         self._populate_scan_profiles(paginated.items, valid_time)
         return paginated
 
@@ -147,7 +154,7 @@ class OctopoesService:
         }
 
         # track all scan level assignments
-        assigned_scan_levels: Dict[Reference, int] = {
+        assigned_scan_levels: Dict[Reference, ScanLevel] = {
             scan_profile.reference: scan_profile.level for scan_profile in all_declared_scan_profiles
         }
 
@@ -191,7 +198,7 @@ class OctopoesService:
                     # assign scan levels to newly found oois and add to next iteration
                     for ooi in next_level:
                         if ooi.reference not in assigned_scan_levels:
-                            assigned_scan_levels[ooi.reference] = current_level
+                            assigned_scan_levels[ooi.reference] = ScanLevel(current_level)
                             temp_next_ooi_set.add(ooi)
 
                 logger.info("Assigned scan levels [level=%i] [len=%i]", current_level, len(temp_next_ooi_set))
@@ -199,7 +206,7 @@ class OctopoesService:
 
         scan_level_aggregates = {i: 0 for i in range(1, 5)}
         for scan_level in assigned_scan_levels.values():
-            scan_level_aggregates.setdefault(scan_level, 0)
+            scan_level_aggregates.setdefault(scan_level.value, 0)
             scan_level_aggregates[scan_level] += 1
 
         logger.info("Assigned scan levels [len=%i]", len(assigned_scan_levels.keys()))
@@ -229,6 +236,7 @@ class OctopoesService:
 
         logger.info("Updated inherited scan profiles [count=%i]", update_count)
 
+        # Reset previously assigned scan profiles to 0
         set_scan_profile_references = {
             scan_profile.reference for scan_profile in all_scan_profiles if scan_profile.level > 0
         }
@@ -238,33 +246,38 @@ class OctopoesService:
         for reference in references_to_reset:
             old_scan_profile = inherited_scan_profiles[reference]
             self.scan_profile_repository.save(old_scan_profile, EmptyScanProfile(reference=reference), valid_time)
-
         logger.info("Resetted scan profiles [len=%i]", len(references_to_reset))
 
+        # Assign empty scan profiles to OOI's without scan profile
+        unset_scan_profile_references = (
+            self.ooi_repository.list_oois_without_scan_profile(valid_time)
+            - set(assigned_scan_levels.keys())
+            - source_scan_profile_references
+            - references_to_reset
+        )
+        for reference in unset_scan_profile_references:
+            self.scan_profile_repository.save(None, EmptyScanProfile(reference=reference), valid_time)
+        logger.info(
+            "Assigned empty scan profiles to OOI's without scan profile [len=%i]", len(unset_scan_profile_references)
+        )
+
     def process_event(self, event: DBEvent):
-        logger.info("Received event: %s", event.json())
 
         # handle event
         event_handler_name = f"_on_{event.operation_type.value}_{event.entity_type}"
         handler: Optional[Callable[[DBEvent], None]] = getattr(self, event_handler_name)
         if handler is not None:
-            logger.info("Processing event with handler '%s'", event_handler_name)
-
             handler(event)
+
+        logger.info(
+            "Processed event [primary_key=%s] [operation_type=%s]",
+            format_id_short(event.primary_key),
+            event.operation_type,
+        )
 
     # OOI events
     def _on_create_ooi(self, event: OOIDBEvent) -> None:
         ooi = event.new_data
-
-        # keep old scan profile, or create new scan profile
-        try:
-            self.scan_profile_repository.get(ooi.reference, event.valid_time)
-        except ObjectNotFoundException:
-            self.scan_profile_repository.save(
-                None,
-                EmptyScanProfile(reference=ooi.reference),
-                valid_time=event.valid_time,
-            )
 
         # analyze bit definitions
         bit_definitions = get_bit_definitions()

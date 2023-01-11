@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime
 from http import HTTPStatus
 from typing import Type, List, Optional, Set, Dict, Union, Any, Tuple
 
@@ -11,7 +12,14 @@ from requests import HTTPError
 from octopoes.config.settings import XTDBType
 from octopoes.events.events import OOIDBEvent, OperationType
 from octopoes.events.manager import EventManager
-from octopoes.models import OOI, datetime, Reference
+from octopoes.models import (
+    OOI,
+    Reference,
+    ScanLevel,
+    DEFAULT_SCAN_LEVEL_FILTER,
+    DEFAULT_SCAN_PROFILE_TYPE_FILTER,
+    ScanProfileType,
+)
 from octopoes.models.exception import ObjectNotFoundException
 from octopoes.models.pagination import Paginated
 from octopoes.models.path import Path, get_paths_to_neighours, Direction, Segment
@@ -61,8 +69,10 @@ class OOIRepository:
         self,
         types: Set[Type[OOI]],
         valid_time: datetime,
-        limit: int = 1000,
         offset: int = 0,
+        limit: int = 20,
+        scan_levels: Set[ScanLevel] = DEFAULT_SCAN_LEVEL_FILTER,
+        scan_profile_types: Set[ScanProfileType] = DEFAULT_SCAN_PROFILE_TYPE_FILTER,
     ) -> Paginated[OOI]:
         raise NotImplementedError
 
@@ -85,6 +95,9 @@ class OOIRepository:
         search_types: Optional[Set[Type[OOI]]] = None,
         depth: Optional[int] = 1,
     ) -> ReferenceTree:
+        raise NotImplementedError
+
+    def list_oois_without_scan_profile(self, valid_time: datetime) -> Set[Reference]:
         raise NotImplementedError
 
 
@@ -192,34 +205,83 @@ class XTDBOOIRepository(OOIRepository):
         valid_time: datetime,
         offset: int = 0,
         limit: int = 20,
-        random: Optional[int] = None,
+        scan_levels: Set[ScanLevel] = DEFAULT_SCAN_LEVEL_FILTER,
+        scan_profile_types: Set[ScanProfileType] = DEFAULT_SCAN_PROFILE_TYPE_FILTER,
     ) -> Paginated[OOI]:
         types = to_concrete(types)
 
-        query = """
+        count_query = """
                 {{
                     :query {{
-                        :find [(count ?e )]
-                        :in [[_object_type ...]]
-                        :where [[?e :object_type _object_type]]
+                        :find [(count ?e)]
+                        :in [[_object_type ...] [_scan_level ...] [_scan_profile_type ...]]
+                        :where [[?e :object_type _object_type]
+                                (or-join [?e _scan_level _scan_profile_type]
+                                  (and
+                                    [?scan_profile :type "ScanProfile"]
+                                    [?scan_profile :reference ?e]
+                                    [?scan_profile :level _scan_level]
+                                    [?scan_profile :scan_profile_type _scan_profile_type]
+                                  )
+                                  (and
+                                      (not-join [?e]
+                                          [?scan_profile :type "ScanProfile"]
+                                          [?scan_profile :reference ?e])
+                                      [(= _scan_level 0)]
+                                      [(= _scan_profile_type "empty")]
+                                  )
+                          )]
                     }}
-                    :in-args [[{object_types}]]
+                    :in-args [[{object_types}], [{scan_levels}], [{scan_profile_types}]]
                 }}
                 """.format(
-            object_types=" ".join(map(lambda t: str_val(t.get_object_type()), types))
+            object_types=" ".join(map(lambda t: str_val(t.get_object_type()), types)),
+            scan_levels=" ".join([str(scan_level.value) for scan_level in scan_levels]),
+            scan_profile_types=" ".join(
+                [str_val(scan_profile_type.value) for scan_profile_type in scan_profile_types]
+            ),
         )
 
-        res_count = self.session.client.query(query, valid_time)
+        res_count = self.session.client.query(count_query, valid_time)
         count = res_count[0][0] if res_count else 0
 
-        query = generate_pull_query(
-            self.xtdb_type,
-            FieldSet.ALL_FIELDS,
-            {"object_type": [t.__name__ for t in types]},
-            offset,
-            limit,
+        data_query = """
+                {{
+                    :query {{
+                        :find [(pull ?e [*])]
+                        :in [[_object_type ...] [_scan_level ...]  [_scan_profile_type ...]]
+                        :where [[?e :object_type _object_type]
+                                (or-join [?e _scan_level _scan_profile_type]
+                                      (and
+                                        [?scan_profile :type "ScanProfile"]
+                                        [?scan_profile :reference ?e]
+                                        [?scan_profile :level _scan_level]
+                                        [?scan_profile :scan_profile_type _scan_profile_type]
+                                      )
+                                      (and
+                                          (not-join [?e]
+                                              [?scan_profile :type "ScanProfile"]
+                                              [?scan_profile :reference ?e])
+                                          [(= _scan_level 0)]
+                                          [(= _scan_profile_type "empty")]
+                                      )
+                              )]
+                        :limit {limit}
+                        :offset {offset}
+                    }}
+                    :in-args [[{object_types}], [{scan_levels}], [{scan_profile_types}]]
+                }}
+        """.format(
+            object_types=" ".join(map(lambda t: str_val(t.get_object_type()), types)),
+            scan_levels=" ".join([str(scan_level.value) for scan_level in scan_levels]),
+            scan_profile_types=" ".join(
+                [str_val(scan_profile_type.value) for scan_profile_type in scan_profile_types]
+            ),
+            limit=limit,
+            offset=offset,
         )
-        res = self.session.client.query(query, valid_time)
+
+        res = self.session.client.query(data_query, valid_time)
         oois = [self.deserialize(x[0]) for x in res]
         return Paginated(
             count=count,
@@ -322,7 +384,9 @@ class XTDBOOIRepository(OOIRepository):
 
         # Query next level
         exclude.update(references)
-        deeper_result = self._get_tree_level(deeper_references, depth=depth - 1, exclude=exclude, valid_time=valid_time)
+        deeper_result = self._get_tree_level(
+            deeper_references, depth=depth - 1, exclude=exclude, valid_time=valid_time
+        )
 
         # Replace flat results with recursed results
         deeper_lookup = {node.reference: node for node in deeper_result}
@@ -453,7 +517,7 @@ class XTDBOOIRepository(OOIRepository):
                 except ValueError:
                     # is not an error, old crux versions return the foreign key as a string,
                     # when related object is not found
-                    logger.info(f"Could not deserialize value [value=%s]", value)
+                    logger.info("Could not deserialize value [value=%s]", value)
 
         return neighbours
 
@@ -505,3 +569,13 @@ class XTDBOOIRepository(OOIRepository):
             old_data=ooi,
         )
         self.session.listen_post_commit(lambda: self.event_manager.publish(event))
+
+    def list_oois_without_scan_profile(self, valid_time: datetime) -> Set[Reference]:
+        query = """
+            {:query {
+             :find [?ooi]
+             :where [[?ooi :object_type ?t]
+                    (not-join [?ooi] [?scan_profile :reference ?ooi] [?scan_profile :type "ScanProfile"])] }}
+        """
+        response = self.session.client.query(query, valid_time=valid_time)
+        return {Reference.from_str(row[0]) for row in response}

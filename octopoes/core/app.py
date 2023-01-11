@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, Optional
 
 import pika
 from pika import BlockingConnection
@@ -16,17 +16,25 @@ from octopoes.xtdb.client import XTDBHTTPClient, XTDBSession
 
 def get_xtdb_client(base_uri: str, client: str, xtdb_type: XTDBType) -> XTDBHTTPClient:
     parts = [base_uri]
-    if client != "_dev":
+    if xtdb_type == XTDBType.XTDB_MULTINODE:
+        parts.append("_xtdb")
         parts.append(client)
-    parts.append(f"_{xtdb_type.value}")
+    else:
+        # Before we had xtdb-multinode we supported multiple organizations by
+        # running multiple XTDB with a reverse proxy in front. This code can be
+        # removed once we no longer support that setup.
+        if client != "_dev":
+            parts.append(client)
+        parts.append(f"_{xtdb_type.value}")
     return XTDBHTTPClient("/".join(parts))
 
 
 def bootstrap_octopoes(
-    settings: Settings, client: str
+    settings: Settings, client: str, xtdb_session: Optional[XTDBSession] = None
 ) -> Tuple[OctopoesService, XTDBHTTPClient, XTDBSession, BlockingConnection]:
     xtdb_client = get_xtdb_client(settings.xtdb_uri, client, settings.xtdb_type)
-    xtdb_session = XTDBSession(xtdb_client)
+    if xtdb_session is None:
+        xtdb_session = XTDBSession(xtdb_client)
 
     rabbit_connection = pika.BlockingConnection(pika.URLParameters(settings.queue_uri))
     channel = rabbit_connection.channel()
