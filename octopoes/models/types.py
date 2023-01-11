@@ -95,7 +95,15 @@ NetworkType = Union[
 ServiceType = Union[Service, IPService]
 SoftwareType = Union[Software, SoftwareInstance]
 WebType = Union[
-    Website, URL, HostnameHTTPURL, IPAddressHTTPURL, HTTPResource, HTTPHeader, HTTPHeaderURL, HTTPHeaderHostname, ImageMetadata
+    Website,
+    URL,
+    HostnameHTTPURL,
+    IPAddressHTTPURL,
+    HTTPResource,
+    HTTPHeader,
+    HTTPHeaderURL,
+    HTTPHeaderHostname,
+    ImageMetadata,
 ]
 
 OOIType = Union[
