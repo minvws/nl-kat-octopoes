@@ -13,7 +13,6 @@ class DNSSPFRecord(OOI):
     value: str
     ttl: Optional[int]
     all: Optional[str]
-    ptr: Optional[str]
     dns_txt_record: Reference = ReferenceField(DNSTXTRecord)
 
     _natural_key_attrs = ["dns_txt_record", "value"]
