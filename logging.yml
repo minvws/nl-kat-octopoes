@@ -14,27 +14,12 @@ handlers:
     stream: ext://sys.stdout
 
 root:
-    level: WARN
+    level: INFO
     handlers: [console]
 
 loggers:
-  uvicorn:
-    level: INFO
-    propagate: 0
-    handlers: [console]
-  pika:
-    level: WARN
-    handlers: [console]
-    propagate: 0
-  api:
+  octopoes:
     LEVEL: INFO
     handlers: [console]
     propagate: 0
-  octopoes:
-    level: INFO
-    handlers: [console]
-    propagate: 0
-  celery:
-    level: WARNING
-    handlers: [console]
-    propagate: 0
+

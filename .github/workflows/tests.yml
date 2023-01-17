@@ -1,42 +1,27 @@
-name: Run the unit tests
+name: Run the test suite
+
 
 on:
   pull_request:
     branches:
-      - "**"
+      - '**'
   push:
     branches:
-      - "develop"
-      - "main"
+      - 'develop'
+      - 'main'
 
 jobs:
-  test:
-    strategy:
-      fail-fast: false
-      matrix:
-        version: ['3.8', '3.9', '3.10', '3.11']
+  Tests:
 
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04
+    env:
+      COMPOSE_FILE: .ci/docker-compose.yml
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v1
 
-      - name: Set up Python ${{ matrix.version }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.version }}
-          cache: 'pip' # caching pip dependencies
+      - name: Build the images
+        run: DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker-compose -f base.yml -f .ci/docker-compose.yml build
 
-      - name: Install requirements.txt
-        run: pip install -r requirements-dev.txt
-
-      - name: Run unit tests
-        run: pytest --cov-report=xml
-
-
-      - if: ${{ matrix.version == '3.8' }}
-        name: Upload coverage as artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: coverage
-          path: coverage.xml
+      - name: Run octopoes unit tests
+        run: docker-compose -f base.yml -f .ci/docker-compose.yml run --rm octopoes_unit
