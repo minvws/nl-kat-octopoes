@@ -1,0 +1,152 @@
+# Native Kat
+interface BaseObject_v1 {
+   primary_key: ID!
+}
+
+interface OOI_v1 implements BaseObject_v1 {
+   primary_key: ID!
+   human_readable: String!
+}
+
+
+# Networking
+type Network_v1 implements BaseObject_v1 & OOI_v1 {
+    primary_key(naturalKeys: [String!] = ["name"]): ID!
+    human_readable(format: String! = "{name}"): String!
+
+    name: String!
+}
+
+type Hostname_v1 implements BaseObject_v1 & OOI_v1 {
+    primary_key(naturalKeys: [String!] = ["network_", "name"]): ID!
+    human_readable: String!
+
+    name: String!
+    network_(reverse_name: String = "hostnames_"): Network_v1!
+}
+
+
+# IPAddress and services
+interface IPAddressBase_v1 implements BaseObject_v1 & OOI_v1 {
+    primary_key(naturalKeys: [String!] = ["network_", "address"]): ID!
+    human_readable: String!
+
+    network_(reverse_name: String = "ip_addresses_"): Network_v1!
+    address: String!
+}
+
+type IPv4Address_v1 implements BaseObject_v1 & OOI_v1 & IPAddressBase_v1 {
+    primary_key(naturalKeys: [String!] = ["network_", "address"]): ID!
+    human_readable: String!
+
+    network_(reverse_name: String = "ip_v4_addresses_"): Network_v1!
+    address: String!
+}
+
+type IPv6Address_v1 implements BaseObject_v1 & OOI_v1 & IPAddressBase_v1 {
+    primary_key(naturalKeys: [String!] = ["network_", "address"]): ID!
+    human_readable: String!
+
+    network_(reverse_name: String = "ip_v6_addresses_"): Network_v1!
+    address: String!
+}
+
+union IPAddress_v1 = IPv4Address_v1 | IPv6Address_v1
+
+
+enum PortProtocol { tcp, udp }
+enum PortState { open, closed, filtered, open_filtered, closed_filtered }
+
+type IPPort_v1 implements BaseObject_v1 & OOI_v1 {
+    primary_key(naturalKeys: [String!] = ["address_", "port"]): ID!
+    human_readable: String!
+
+    address_(reverse_name: String = "ports_"): IPAddress_v1!
+    protocol: PortProtocol
+    port: Int!
+    state: PortState
+}
+
+type Service_v1 implements BaseObject_v1 & OOI_v1 {
+    primary_key(naturalKeys: [String!] = ["name"]): ID!
+    human_readable: String!
+
+    name: String!
+}
+
+type IPService_v1 implements BaseObject_v1 & OOI_v1 {
+    primary_key(naturalKeys: [String!] = ["port_", "service_"]): ID!
+    human_readable: String!
+
+    port_(reverse_name: String = "services_"): IPPort_v1!
+    service_(reverse_name: String = "services_"): Service_v1!
+}
+
+
+# DNS
+enum DNSRecordType { A, AAAA, CNAME, MX, NS, PTR, SOA, SRV, TXT }
+
+interface DNSRecord_v1 implements BaseObject_v1 & OOI_v1 {
+    primary_key(naturalKeys: [String!] = ["name", "type", "value"]): ID!
+    human_readable: String!
+
+    hostname_(reverse_name: String = "dns_records_"): Hostname_v1!
+    type: DNSRecordType!
+    value: String!
+    ttl: Int
+}
+
+type DNSARecord_v1 implements BaseObject_v1 & OOI_v1 & DNSRecord_v1 {
+    primary_key(naturalKeys: [String!] = ["name", "type", "value"]): ID!
+    human_readable: String!
+
+    hostname_(reverse_name: String = "dns_a_records_"): Hostname_v1!
+    type: DNSRecordType!
+    value: String!
+    address_(reverse_name: String = "dns_a_records_"): IPv4Address_v1
+    ttl: Int
+}
+type DNSAAAARecord_v1 implements BaseObject_v1 & OOI_v1 & DNSRecord_v1 {
+    primary_key(naturalKeys: [String!] = ["name", "type", "value"]): ID!
+    human_readable: String!
+
+    hostname_(reverse_name: String = "dns_aaaa_records_"): Hostname_v1!
+    type: DNSRecordType!
+    value: String!
+    address_(reverse_name: String = "dns_aaaa_records_"): IPv6Address_v1
+    ttl: Int
+}
+type DNSMXRecord_v1 implements BaseObject_v1 & OOI_v1 & DNSRecord_v1 {
+    primary_key(naturalKeys: [String!] = ["name", "type", "value"]): ID!
+    human_readable: String!
+
+    hostname_(reverse_name: String = "dns_mx_records_"): Hostname_v1!
+    type: DNSRecordType!
+    value: String!
+    mx_hostname_(reverse_name: String = "dns_mx_records_"): Hostname_v1
+    ttl: Int
+}
+type DNSSOARecord_v1 implements BaseObject_v1 & OOI_v1 & DNSRecord_v1 {
+    primary_key(naturalKeys: [String!] = ["name", "type", "value"]): ID!
+    human_readable: String!
+
+    hostname_(reverse_name: String = "dns_soa_records_"): Hostname_v1!
+    type: DNSRecordType!
+    value: String!
+    serial: Int
+    refresh: Int
+    retry: Int
+    expire: Int
+    minimum: Int
+    ttl: Int
+
+    primary_ns_(reverse_name: String = "dns_soa_records_"): Hostname_v1
+    admin_email_(reverse_name: String = "dns_soa_records_"): Hostname_v1
+}
+
+
+union OOI_ = Network_v1 | Hostname_v1 | IPv4Address_v1 | IPv6Address_v1 | IPPort_v1 | Service_v1 | IPService_v1
+
+type Query {
+  OOI: [OOI_!]
+}

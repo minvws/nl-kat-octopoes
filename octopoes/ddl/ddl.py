@@ -1,114 +1,115 @@
 from __future__ import annotations
 
-import json
-from enum import Enum
-from typing import Dict, Optional, Literal, Union, List
+from logging import getLogger
+from pathlib import Path
+from typing import cast
 
-import pydantic
-from pydantic import BaseModel
+from graphql import (
+    build_schema,
+    GraphQLObjectType,
+    GraphQLInterfaceType,
+    GraphQLSchema,
+    print_type,
+)
 
-
-class PrimitiveFieldType(Enum):
-    STRING = "str"
-    INTEGER = "int"
-    FLOAT = "float"
-    BOOLEAN = "bool"
-
-
-class FieldType(Enum):
-    STRING = "str"
-    INTEGER = "int"
-    FLOAT = "float"
-    BOOLEAN = "bool"
-    ENUM = "enum"
+logger = getLogger(__name__)
 
 
-class FieldDefinition(BaseModel):
-    type: Union[FieldType, str]
-    multiple: bool = False
-
-    class Config:
-        use_enum_values = True
+class SchemaValidationException(Exception):
+    pass
 
 
-class EnumFieldDefinition(FieldDefinition):
-    type: Literal[FieldType.ENUM] = FieldType.ENUM
-    members: Dict[str, str]
+# Types that are already used by the GraphQL library and should not be used in KAT schemas
+BUILTIN_TYPES = {
+    "String",
+    "Int",
+    "Float",
+    "Boolean",
+    "ID",
+    "__Schema",
+    "__Type",
+    "__TypeKind",
+    "__Field",
+    "__InputValue",
+    "__EnumValue",
+    "__Directive",
+    "__DirectiveLocation",
+}
 
+BUILTIN_DIRECTIVES = {
+    "skip",
+    "include",
+    "deprecated",
+    "specifiedBy",
+}
 
-FIELD_DEFINITION_TYPES = Union[FieldDefinition, EnumFieldDefinition]
-
-
-class ClassDefinition(BaseModel):
-    name: str
-    version: str
-    abstract: bool = False
-    parent: Optional[str] = None
-    fields: Dict[str, Union[PrimitiveFieldType, str, FIELD_DEFINITION_TYPES]]
-    natural_key: Optional[List[str]]
-
-    class Config:
-        use_enum_values = True
-
-
-class SchemaDefinition(BaseModel):
-    module: str
-    classes: List[ClassDefinition]
-
-
-class HydratedClassDefinition(ClassDefinition):
-    parent: Optional[HydratedClassDefinition] = None
-
-
-HydratedClassDefinition.update_forward_refs()
+RESERVED_KEYWORDS = {
+    "Query",
+    "Mutation",
+}
 
 
 class SchemaManager:
+    def __init__(self):
+        self.base_schema = self.load_schema(path=Path(__file__).parent / "schemas" / "base_schema.graphql")
 
-    def __init__(self, definition: SchemaDefinition):
-        self.definition = definition
-        self.cls_defs = {f"{definition.module}_{cls.name}_{cls.version}": cls for cls in definition.classes}
-        self.hydrated_cls_defs: Dict[str, HydratedClassDefinition] = {}
+        self.ooi_type = cast(GraphQLInterfaceType, self.base_schema.type_map["OOI_v1"])
+        self.base_type = cast(GraphQLInterfaceType, self.base_schema.type_map["BaseObject_v1"])
 
-        self.hydrate_parents()
-
-    def hydrate_parents(self):
-
-        # convert cls_defs to hydrated
-        for cls_ in self.cls_defs.values():
-            data = cls_.dict()
-            data.pop('parent')
-            self.hydrated_cls_defs[f"{self.definition.module}_{cls_.name}_{cls_.version}"] = HydratedClassDefinition(**data)
-
-        # hydrate parents
-        for cls_id, cls in self.hydrated_cls_defs.items():
-            if self.cls_defs[cls_id].parent:
-                cls.parent = self.hydrated_cls_defs[self.cls_defs[cls_id].parent]
+        self.current_schema = self.base_schema
 
     @staticmethod
-    def calc_inherited(class_definition: HydratedClassDefinition) -> Dict[str, FieldDefinition]:
-        # TODO: implement
-        fields = class_definition.fields.copy()
-        if class_definition.parent:
-            parent_fields = SchemaManager.calc_inherited(class_definition.parent)
-            class_definition.fields.update(class_definition.parent.fields)
-        else:
-            return {}
+    def load_schema(path: Path) -> GraphQLSchema:
+        with open(path) as f:
+            schema = build_schema(f.read())
+            logger.info("Loaded schema: %s", path)
+            return schema
+
+    def validate(self, new_schema: GraphQLSchema) -> None:
+
+        # Validate root types
+        if "OOI_v1" not in new_schema.type_map:
+            raise SchemaValidationException("Schema must contain OOI_v1 interface")
+
+        if "BaseObject_v1" not in new_schema.type_map:
+            raise SchemaValidationException("Schema must contain BaseObject_v1 interface")
+
+        new_ooi_type = cast(GraphQLInterfaceType, new_schema.type_map["OOI_v1"])
+        new_base_type = cast(GraphQLInterfaceType, new_schema.type_map["BaseObject_v1"])
+
+        if print_type(new_ooi_type) != print_type(self.ooi_type):
+            raise SchemaValidationException(f"{self.ooi_type.name} must equal orginal type")
+
+        if print_type(new_base_type) != print_type(self.base_type):
+            raise SchemaValidationException(f"{self.base_type.name} must equal orginal type")
+
+        # Validate directives, no custom directives are allowed
+        directive_names = {d.name for d in new_schema.directives}
+        if directive_names - BUILTIN_DIRECTIVES:
+            raise SchemaValidationException("Custom directives are not allowed")
+
+        # Validate object types
+        for type_ in new_schema.type_map.values():
+            if type_.name in BUILTIN_TYPES:
+                continue
+
+            if type_ == new_ooi_type or type_ == new_base_type:
+                continue
+
+            if type_.name in RESERVED_KEYWORDS:
+                raise SchemaValidationException(f"{type_.name} is a reserved keyword")
+
+            if not isinstance(type_, GraphQLObjectType):
+                raise SchemaValidationException(f"Type {type_.name} must be an object type")
+
+            if new_base_type not in type_.interfaces:
+                raise SchemaValidationException(f"Object type must implement base types [type={type_.name}]")
+            if new_ooi_type not in type_.interfaces:
+                raise SchemaValidationException(f"Object type must implement base types [type={type_.name}]")
 
 
 if __name__ == "__main__":
-
-    # first cmd-line arg is the yaml ddl
-    import sys
-    import yaml
-    with open(sys.argv[1]) as f:
-        ddl = yaml.safe_load(f)
-
-        # parse the ddl
-        class_def = SchemaDefinition.parse_obj(ddl)
-
-        # print the ddl
-        print(json.dumps(class_def.dict(), indent=4))
-
-        schema_loader = SchemaManager(class_def)
-        schema_loader.hydrate_parents()
+    schema_manager = SchemaManager()
+    print(Path(__file__).parent / "schemas" / "openkat_schema.graphql")
+    new_schema_ = schema_manager.load_schema(Path(__file__).parent / "schemas" / "openkat_schema.graphql")
+    schema_manager.validate(new_schema_)

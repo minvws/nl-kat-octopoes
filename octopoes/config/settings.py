@@ -19,7 +19,7 @@ class Settings(BaseSettings):
 
     # External services settings
     dsn_katalogus: str = "http://katalogus:8000/"
-    dsn_xtdb: str = "http://xtdb:3000/"
+    dsn_xtdb: str = "http://xtdb:3000/_xtdb"
     dsn_rabbitmq: str = "amqp://guest:guest@rabbitmq:5672/kat"
 
     class Config:

@@ -1,0 +1,18 @@
+# Native Kat
+interface BaseObject_v1 {
+   primary_key: ID!
+}
+
+interface OOI_v1 implements BaseObject_v1 {
+   primary_key: ID!
+   human_readable: String!
+}
+
+directive @test(arg1: String!) on FIELD_DEFINITION
+
+type Test implements OOI_v1 & BaseObject_v1 {
+   primary_key(natural_key: [String] = ["test"]): ID!
+   human_readable: String!
+   test: String! @test(arg1: "test")
+}
+

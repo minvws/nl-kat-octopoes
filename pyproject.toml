@@ -15,13 +15,23 @@ kombu = "^5.2.4"
 celery = "^5.2.7"
 uvicorn = "^0.18.3"
 PyYAML = "^6.0"
+ariadne = "^0.16.1"
+graphql-core = "^3.2.3"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 mypy = "^0.982"
 pylint = "^2.15.3"
 black = "^22.10.0"
 flake8 = "^5.0.4"
 vulture = "^2.6"
+pytest = "^7.2.0"
+pytest-cov = "^4.0.0"
+pytest-mock = "^3.10.0"
+robotframework = "^6.0.1"
+robotframework-requests = "^0.9.4"
+robotframework-tidy = "^3.3.2"
+robotframework-httplibrary = "^0.4.2"
+pre-commit = "^2.20.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
