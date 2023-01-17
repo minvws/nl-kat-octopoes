@@ -6,26 +6,25 @@ services:
     restart: on-failure
     image: "rabbitmq:3.9-management"
     ports:
-      - "127.0.0.1:29003:15672"
-      - "127.0.0.1:29004:5672"
+      - "127.0.0.1:28003:15672"
+      - "127.0.0.1:28004:5672"
     healthcheck:
       test: [ "CMD", "rabbitmqctl", "status" ]
       interval: 5s
       retries: 10
     env_file:
-      - ".ci/ci.env"
+      - ".ci/ci-crux.env"
 
   crux:
     env_file:
-      - ".ci/ci.env"
-    entrypoint: ["clojure", "-J-Dlogback.configurationFile=resources/logback.xml", "-M", "-m", "xtdb.main"]
+      - ".ci/ci-crux.env"
     healthcheck:
-      test: [ "CMD", "python3", "/home/health_check.py", "http://localhost:3000/_xtdb/status"]
+      test: [ "CMD", "python3", "/home/health_check.py", "http://localhost:3000/_crux/status"]
       interval: 5s
       retries: 10
-    image: "juxt/xtdb-standalone-rocksdb:1.21.0"
+    image: "juxt/crux-in-memory:21.05-1.17.0"
     ports:
-      - "127.0.0.1:29002:3000"
+      - "127.0.0.1:28002:3000"
     restart: on-failure
     volumes:
       - ./.ci/health_check.py:/home/health_check.py
@@ -40,9 +39,9 @@ services:
       crux:
         condition: service_healthy
     ports:
-        - "127.0.0.1:29000:80"
+        - "127.0.0.1:28000:80"
     env_file:
-      - ".ci/ci.env"
+      - ".ci/ci-crux.env"
 
   octopoes_api_worker:
     build:
@@ -54,13 +53,13 @@ services:
       crux:
         condition: service_healthy
     env_file:
-      - ".ci/ci.env"
+      - ".ci/ci-crux.env"
 
   katalogus_mock:
     image: "wiremock/wiremock:2.34.0"
     volumes:
       - ./.ci/wiremock:/home/wiremock
     ports:
-      - "127.0.0.1:29001:8080"
+      - "127.0.0.1:28001:8080"
     env_file:
-      - ".ci/ci.env"
+      - ".ci/ci-crux.env"

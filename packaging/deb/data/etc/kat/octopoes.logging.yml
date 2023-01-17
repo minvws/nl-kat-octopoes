@@ -12,29 +12,26 @@ handlers:
     formatter: default
     level: INFO
     stream: ext://sys.stdout
+  syslog:
+    class: logging.handlers.SysLogHandler
+    formatter: default
+    address: /dev/log
+    facility: local0
 
 root:
-    level: WARN
-    handlers: [console]
+    level: INFO
+    handlers: [console, syslog]
 
 loggers:
   uvicorn:
     level: INFO
     propagate: 0
-    handlers: [console]
+    handlers: [console, syslog]
   pika:
     level: WARN
-    handlers: [console]
+    handlers: [console, syslog]
     propagate: 0
   api:
     LEVEL: INFO
-    handlers: [console]
-    propagate: 0
-  octopoes:
-    level: INFO
-    handlers: [console]
-    propagate: 0
-  celery:
-    level: WARNING
-    handlers: [console]
+    handlers: [console, syslog]
     propagate: 0
