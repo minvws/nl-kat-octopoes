@@ -129,7 +129,7 @@ class IPV6NetBlock(NetBlock):
 
     parent: Optional[Reference] = ReferenceField("IPV6NetBlock", default=None)
 
-    start_ip: Reference = ReferenceField(IPAddressV6)
+    start_ip: Reference = ReferenceField(IPAddressV6, max_issue_scan_level=4)
     mask: conint(ge=0, lt=128)
 
     _reverse_relation_names = {
@@ -143,7 +143,7 @@ class IPV4NetBlock(NetBlock):
 
     parent: Optional[Reference] = ReferenceField("IPV4NetBlock", default=None)
 
-    start_ip: Reference = ReferenceField(IPAddressV4)
+    start_ip: Reference = ReferenceField(IPAddressV4, max_issue_scan_level=4)
     mask: conint(ge=0, lt=32)
 
     _reverse_relation_names = {
