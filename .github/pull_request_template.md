@@ -20,14 +20,17 @@ _This section may be skipped or omitted. Uncomment and answer the below question
 ## Checklist for author(s):
 - [ ] This PR comes from a `feature` or `hotfix` branch, in line with our git branching strategy;
 - [ ] This PR is "bite-sized" and only focuses on a single issue, problem, or feature;
-- [ ] If a non-trivial PR: This PR is properly linked to the project board (either directly or via an issue);
-- [ ] If a non-trivial PR: I have added screenshots or some other proof that my code does what it is supposed to do;
 - [ ] I am not reinventing the wheel: there is no high-quality library that already has this feature;
 - [ ] I have changed the example `.env` files if I added, removed, or changed any config options, and I have informed others that they need to modify their `.env` files if required;
 - [ ] I have performed a self-review of my own code;
 - [ ] I have commented my code, particularly in hard-to-understand areas;
 - [ ] I have made corresponding changes to the documentation, if necessary;
 - [ ] I have written unit, integration, and end-to-end tests for the change that I made;
+
+If a non-trivial PR:
+- [ ] This PR is part of a milestone and has appropriate labels;
+- [ ] This PR is properly linked to the project board (either directly or via an issue);
+- [ ] I have added screenshots or some other proof that my code does what it is supposed to do;
 
 
 ```
