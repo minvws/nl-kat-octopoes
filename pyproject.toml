@@ -2,7 +2,7 @@
 name = "octopoes"
 version = "3.0.0"
 description = "KAT's knowledge graph engine"
-authors = [""]
+authors = ["RDO Beheer"]
 license = "EUPL"
 
 [build-system]

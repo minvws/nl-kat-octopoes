@@ -57,6 +57,7 @@ itest-crux:
 	robot -d reports --variablefile tests/robot/variables.py:crux tests/robot || :
 	docker-compose -f docker-compose-base.yml -f .ci/docker-compose-crux.yml down --remove-orphans
 
-export-requirements: ## Export the requirements to requirements.txt
+update-requirements: ## Update the lock file and export the requirements to requirements.txt
+	poetry lock
 	poetry export --output requirements.txt --without-hashes && \
 	poetry export --output requirements-dev.txt --with dev --without-hashes
