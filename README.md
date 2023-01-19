@@ -2,12 +2,13 @@
 
 Octopoes is KAT's knowledge-graph. It stores the knowledge KAT has gathered about its domain. As Octopoes uses [XTDB](https://xtdb.com) for bi-temporal data-storage, Octopoes keeps the current state of the knowledge-graph, as well as a complete, queryable history of the knowledge-graph.
 
-## Development environment with poetry
+## Development environment with poetry and pre-commit
 
 To activate and install an isolated virtual environment:
 ```bash
 poetry shell
 poetry install
+pre-commit install
 ```
 
 To update `poetry.lock` with the dependencies from `pyproject.toml`, and update `requirements.txt` and `requirements-dev.txt`:
