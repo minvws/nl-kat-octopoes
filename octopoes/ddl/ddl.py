@@ -64,7 +64,6 @@ HydratedClassDefinition.update_forward_refs()
 
 
 class SchemaManager:
-
     def __init__(self, definition: SchemaDefinition):
         self.definition = definition
         self.cls_defs = {f"{definition.module}_{cls.name}_{cls.version}": cls for cls in definition.classes}
@@ -77,8 +76,10 @@ class SchemaManager:
         # convert cls_defs to hydrated
         for cls_ in self.cls_defs.values():
             data = cls_.dict()
-            data.pop('parent')
-            self.hydrated_cls_defs[f"{self.definition.module}_{cls_.name}_{cls_.version}"] = HydratedClassDefinition(**data)
+            data.pop("parent")
+            self.hydrated_cls_defs[f"{self.definition.module}_{cls_.name}_{cls_.version}"] = HydratedClassDefinition(
+                **data
+            )
 
         # hydrate parents
         for cls_id, cls in self.hydrated_cls_defs.items():
@@ -101,6 +102,7 @@ if __name__ == "__main__":
     # first cmd-line arg is the yaml ddl
     import sys
     import yaml
+
     with open(sys.argv[1]) as f:
         ddl = yaml.safe_load(f)
 

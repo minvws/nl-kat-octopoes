@@ -7,7 +7,6 @@ from octopoes.models import Organisation
 
 
 class Ingester:
-
     def __init__(
         self,
         ctx: context.AppContext,
@@ -75,8 +74,8 @@ class Ingester:
         # wait for processing to complete
 
         # loop(while things to do)
-            # execute relational bits
-            # wait for processing to complete
+        # execute relational bits
+        # wait for processing to complete
 
         # perform dynamic programming computations
         # - propagate scan profiles
