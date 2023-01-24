@@ -1,11 +1,11 @@
 from abc import ABC
 from enum import Enum
-from typing import Literal, Optional
+from typing import Literal, Optional, Dict
 
 from pydantic import AnyUrl
 
 from octopoes.models import OOI, Reference
-from octopoes.models.ooi.certificate import Certificate
+from octopoes.models.ooi.certificate import X509Certificate
 from octopoes.models.ooi.dns.zone import Hostname
 from octopoes.models.ooi.network import IPAddress, Network
 from octopoes.models.ooi.service import IPService
@@ -17,7 +17,7 @@ class Website(OOI):
 
     ip_service: Reference = ReferenceField(IPService, max_issue_scan_level=0, max_inherit_scan_level=4)
     hostname: Reference = ReferenceField(Hostname, max_inherit_scan_level=4)
-    certificate: Optional[Reference] = ReferenceField(Certificate, default=None)
+    certificate: Optional[Reference] = ReferenceField(X509Certificate, default=None)
 
     _natural_key_attrs = ["ip_service", "hostname"]
 
@@ -196,3 +196,28 @@ class HTTPHeaderHostname(OOI):
         address = t.resource.website.ip_service.ip_port.address.address
 
         return f"{t.key} @ {web_url} @ {address} contains {str(reference.tokenized.hostname.name)}"
+
+
+class ImageMetadata(OOI):
+    object_type: Literal["ImageMetadata"] = "ImageMetadata"
+
+    resource: Reference = ReferenceField(HTTPResource, max_issue_scan_level=0, max_inherit_scan_level=4)
+    image_info: Dict
+
+    _natural_key_attrs = ["resource"]
+    _reverse_relation_names = {"resource": "ImageMetaData"}
+
+    @classmethod
+    def format_reference_human_readable(cls, reference: Reference) -> str:
+        t = reference.tokenized
+
+        port = f":{t.resource.web_url.port}" if t.resource.web_url.port else ""
+        try:
+            netloc = t.resource.web_url.netloc.address
+        except KeyError:
+            netloc = t.resource.web_url.netloc.name
+
+        web_url = f"{t.resource.web_url.scheme}://{netloc}{port}{t.resource.web_url.path}"
+        address = t.resource.website.ip_service.ip_port.address.address
+
+        return f"{web_url} @ {address}"
