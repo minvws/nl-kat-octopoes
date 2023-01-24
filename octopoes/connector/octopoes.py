@@ -8,9 +8,16 @@ from requests import Response, HTTPError
 
 from octopoes.api.models import Observation, Declaration, ServiceHealth
 from octopoes.connector import RemoteException
-from octopoes.models import Reference, OOI, ScanProfile
+from octopoes.models import (
+    Reference,
+    OOI,
+    ScanProfile,
+    ScanLevel,
+    DEFAULT_SCAN_LEVEL_FILTER,
+    ScanProfileType,
+    DEFAULT_SCAN_PROFILE_TYPE_FILTER,
+)
 from octopoes.models.exception import ObjectNotFoundException
-from octopoes.models.filter import FilterOperator
 from octopoes.models.origin import Origin
 from octopoes.models.pagination import Paginated
 from octopoes.models.tree import ReferenceTree
@@ -61,6 +68,8 @@ class OctopoesAPIConnector:
     """
 
     def __init__(self, base_uri: str, client: str):
+        self.base_uri = base_uri
+        self.client = client
         self.session = OctopoesAPISession(base_uri, client)
 
     def health(self) -> ServiceHealth:
@@ -72,16 +81,16 @@ class OctopoesAPIConnector:
         valid_time: Optional[datetime] = None,
         offset: int = 0,
         limit: int = 5000,
-        scan_level: int = 0,
-        scan_level_operator: FilterOperator = FilterOperator.GREATER_THAN_OR_EQUAL_TO,
+        scan_level: Set[ScanLevel] = DEFAULT_SCAN_LEVEL_FILTER,
+        scan_profile_type: Set[ScanProfileType] = DEFAULT_SCAN_PROFILE_TYPE_FILTER,
     ) -> Paginated[OOIType]:
         params = {
             "types": [t.__name__ for t in types],
             "valid_time": valid_time,
             "offset": offset,
             "limit": limit,
-            "scan_level": scan_level,
-            "scan_level_operator": scan_level_operator.value,
+            "scan_level": {s.value for s in scan_level},
+            "scan_profile_type": {s.value for s in scan_profile_type},
         }
         res = self.session.get("/objects", params=params)
         return Paginated[OOIType].parse_obj(res.json())
@@ -131,3 +140,9 @@ class OctopoesAPIConnector:
     def delete(self, reference: Reference, valid_time: Optional[datetime] = None) -> None:
         params = {"reference": str(reference), "valid_time": valid_time}
         self.session.delete("/", params=params)
+
+    def create_node(self):
+        self.session.post("/node")
+
+    def delete_node(self):
+        self.session.delete("/node")

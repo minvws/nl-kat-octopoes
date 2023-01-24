@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import abc
-from enum import Enum
+from enum import Enum, IntEnum
 from typing import (
     List,
     TypeVar,
@@ -19,9 +19,30 @@ from pydantic import BaseModel, Field, conint
 from typing_extensions import Annotated
 
 
+class ScanLevel(IntEnum):
+    L0 = 0
+    L1 = 1
+    L2 = 2
+    L3 = 3
+    L4 = 4
+
+    def __str__(self) -> str:
+        return str(self.value)
+
+
+DEFAULT_SCAN_LEVEL_FILTER = {scan_level for scan_level in ScanLevel}
+
+
+class ScanProfileType(Enum):
+    DECLARED = "declared"
+    INHERITED = "inherited"
+    EMPTY = "empty"
+
+
 class ScanProfileBase(BaseModel, abc.ABC):
+    scan_profile_type: str
     reference: Reference
-    level: conint(ge=0, le=4)
+    level: ScanLevel
 
     def __eq__(self, other):
         if isinstance(other, ScanProfileBase) and self.__class__ == other.__class__:
@@ -37,22 +58,23 @@ class ScanProfileBase(BaseModel, abc.ABC):
 
 
 class EmptyScanProfile(ScanProfileBase):
-    scan_profile_type: Literal["empty"] = "empty"
-    level: conint(ge=0, le=0) = 0
+    scan_profile_type: Literal["empty"] = ScanProfileType.EMPTY.value
+    level: ScanLevel = ScanLevel.L0
 
 
 class DeclaredScanProfile(ScanProfileBase):
-    scan_profile_type: Literal["declared"] = "declared"
-    level: conint(ge=0, le=4)
+    scan_profile_type: Literal["declared"] = ScanProfileType.DECLARED.value
 
 
 class InheritedScanProfile(ScanProfileBase):
-    scan_profile_type: Literal["inherited"] = "inherited"
+    scan_profile_type: Literal["inherited"] = ScanProfileType.INHERITED.value
 
 
 ScanProfile = Annotated[
     Union[EmptyScanProfile, InheritedScanProfile, DeclaredScanProfile], Field(discriminator="scan_profile_type")
 ]
+
+DEFAULT_SCAN_PROFILE_TYPE_FILTER = {scan_profile_type for scan_profile_type in ScanProfileType}
 
 
 class OOI(BaseModel, abc.ABC):

@@ -5,7 +5,12 @@ from typing import Type, Dict, Set, Iterator, Union
 from pydantic.fields import ModelField
 
 from octopoes.models import OOI, Reference
-from octopoes.models.ooi.certificate import Certificate, CertificateSubjectAlternativeName
+from octopoes.models.ooi.certificate import (
+    Certificate,
+    SubjectAlternativeNameHostname,
+    SubjectAlternativeNameIP,
+    SubjectAlternativeNameQualifier,
+)
 from octopoes.models.ooi.dns.records import (
     DNSARecord,
     DNSAAAARecord,
@@ -50,9 +55,15 @@ from octopoes.models.ooi.web import (
     URL,
     HTTPHeaderURL,
     HTTPHeaderHostname,
+    ImageMetadata,
 )
 
-CertificateType = Union[Certificate, CertificateSubjectAlternativeName]
+CertificateType = Union[
+    Certificate,
+    SubjectAlternativeNameHostname,
+    SubjectAlternativeNameIP,
+    SubjectAlternativeNameQualifier,
+]
 DnsType = Union[DNSZone, Hostname]
 DnsRecordType = Union[
     DNSARecord,
@@ -85,7 +96,15 @@ NetworkType = Union[
 ServiceType = Union[Service, IPService]
 SoftwareType = Union[Software, SoftwareInstance]
 WebType = Union[
-    Website, URL, HostnameHTTPURL, IPAddressHTTPURL, HTTPResource, HTTPHeader, HTTPHeaderURL, HTTPHeaderHostname
+    Website,
+    URL,
+    HostnameHTTPURL,
+    IPAddressHTTPURL,
+    HTTPResource,
+    HTTPHeader,
+    HTTPHeaderURL,
+    HTTPHeaderHostname,
+    ImageMetadata,
 ]
 MonitoringType = Union[Application, Incident]
 
