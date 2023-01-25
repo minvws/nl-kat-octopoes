@@ -14,7 +14,7 @@ class DNSSPFRecord(OOI):
     ttl: Optional[int]
     all: Optional[str]
     exp: Optional[str]
-    dns_txt_record: Reference = ReferenceField(DNSTXTRecord)
+    dns_txt_record: Reference = ReferenceField(DNSTXTRecord, max_inherit_scan_level=1)
 
     _natural_key_attrs = ["dns_txt_record", "value"]
     _reverse_relation_names = {
@@ -33,7 +33,7 @@ class DNSSPFRecord(OOI):
 
 
 class DNSSPFMechanism(OOI):
-    spf_record: Reference = ReferenceField(DNSSPFRecord)
+    spf_record: Reference = ReferenceField(DNSSPFRecord, max_inherit_scan_level=1)
     mechanism: str
 
 
@@ -59,7 +59,7 @@ class DNSSPFMechanismIP(DNSSPFMechanism):
 class DNSSPFMechanismHostname(DNSSPFMechanism):
     object_type: Literal["DNSSPFMechanismHostname"] = "DNSSPFMechanismHostname"
 
-    hostname: Reference = ReferenceField(Hostname)
+    hostname: Reference = ReferenceField(Hostname, max_issue_scan_level=1)
 
     _natural_key_attrs = ["spf_record", "mechanism", "hostname"]
     _information_value = ["mechanism"]

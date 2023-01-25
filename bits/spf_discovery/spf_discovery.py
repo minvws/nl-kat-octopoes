@@ -41,7 +41,7 @@ def run(
                     yield from parse_redirect_mechanism(mechanism, input_ooi, spf_record)
                 # exp mechanism is handled separately because does not necessarily have a hostname
                 if mechanism.startswith("exp"):
-                    spf_record.exp = mechanism.split(":", 1)[1]
+                    spf_record.exp = mechanism.split("=", 1)[1]
                 if mechanism.endswith("all"):
                     spf_record.all = mechanism.strip("all")
                 yield spf_record
@@ -52,8 +52,10 @@ def parse_ip_qualifiers(mechanism: str, input_ooi: DNSTXTRecord, spf_record: DNS
     qualifier, ip = mechanism.split(":", 1)
     ip = mechanism[4:]
     # split ip in ip and mask
-    ip, mask = ip.split("/")
-    if not mask:
+    mask = None
+    if "/" in ip:
+        ip, mask = ip.split("/")
+    if mask is None:
         if qualifier == "ipv4":
             ip_address = IPAddressV4(address=ip, network=Reference.from_str(input_ooi.hostname.tokenized.network))
             yield ip_address
