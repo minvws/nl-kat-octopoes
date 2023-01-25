@@ -13,6 +13,7 @@ class DNSSPFRecord(OOI):
     value: str
     ttl: Optional[int]
     all: Optional[str]
+    exp: Optional[str]
     dns_txt_record: Reference = ReferenceField(DNSTXTRecord)
 
     _natural_key_attrs = ["dns_txt_record", "value"]
@@ -33,7 +34,6 @@ class DNSSPFRecord(OOI):
 
 class DNSSPFMechanism(OOI):
     spf_record: Reference = ReferenceField(DNSSPFRecord)
-    qualifier: str
     mechanism: str
 
 
@@ -42,8 +42,8 @@ class DNSSPFMechanismIP(DNSSPFMechanism):
 
     ip: Reference = ReferenceField(IPAddress)
 
-    _natural_key_attrs = ["spf_record", "qualifier", "mechanism", "ip"]
-    _information_value = ["qualifier"]
+    _natural_key_attrs = ["spf_record", "mechanism", "ip"]
+    _information_value = ["mechanism"]
     _reverse_relation_names = {
         "spf_record": "spf_ip_mechanisms",
     }
@@ -51,8 +51,8 @@ class DNSSPFMechanismIP(DNSSPFMechanism):
     @classmethod
     def format_reference_human_readable(cls, reference: Reference) -> str:
         return (
-            f"SPF Record of {reference.tokenized.spf_record.dns_txt_record.hostname.name} to "
-            + f"{reference.tokenized.qualifier} {reference.tokenized.ip.address}"
+            f"SPF Record of {reference.tokenized.spf_record.dns_txt_record.hostname.name}"
+            + f"{reference.tokenized.mechanism} {reference.tokenized.ip.address}"
         )
 
 
@@ -61,8 +61,8 @@ class DNSSPFMechanismHostname(DNSSPFMechanism):
 
     hostname: Reference = ReferenceField(Hostname)
 
-    _natural_key_attrs = ["spf_record", "qualifier", "mechanism", "hostname"]
-    _information_value = ["qualifier"]
+    _natural_key_attrs = ["spf_record", "mechanism", "hostname"]
+    _information_value = ["mechanism"]
     _reverse_relation_names = {
         "spf_record": "spf_hostname_mechanisms",
     }
@@ -71,7 +71,7 @@ class DNSSPFMechanismHostname(DNSSPFMechanism):
     def format_reference_human_readable(cls, reference: Reference) -> str:
         return (
             f"SPF Record of {reference.tokenized.spf_record.dns_txt_record.hostname.name} "
-            + f"to {reference.tokenized.qualifier} {reference.tokenized.hostname.name}"
+            + f"{reference.tokenized.mechanism} {reference.tokenized.hostname.name}"
         )
 
 
@@ -80,8 +80,8 @@ class DNSSPFMechanismNetBlock(DNSSPFMechanism):
 
     netblock: Reference = ReferenceField(NetBlock)
 
-    _natural_key_attrs = ["spf_record", "qualifier", "mechanism", "netblock"]
-    _information_value = ["qualifier"]
+    _natural_key_attrs = ["spf_record", "mechanism", "netblock"]
+    _information_value = ["mechanism"]
     _reverse_relation_names = {
         "spf_record": "spf_netblock_mechanisms",
     }
@@ -89,9 +89,8 @@ class DNSSPFMechanismNetBlock(DNSSPFMechanism):
     @classmethod
     def format_reference_human_readable(cls, reference: Reference) -> str:
         return (
-            f"SPF Record of {reference.tokenized.spf_record.dns_txt_record.hostname.name} to "
-            + f"{reference.tokenized.qualifier} "
-            + f"{reference.tokenized.netblock.start_ip}/{reference.tokenized.netblock.mask}"
+            f"SPF Record of {reference.tokenized.spf_record.dns_txt_record.hostname.name} "
+            + f" {reference.tokenized.mechanism} {reference.tokenized.netblock.start_ip}/{reference.tokenized.netblock.mask}"
         )
 
 
