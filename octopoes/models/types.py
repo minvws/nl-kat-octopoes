@@ -6,7 +6,7 @@ from pydantic.fields import ModelField
 
 from octopoes.models import OOI, Reference
 from octopoes.models.ooi.certificate import (
-    Certificate,
+    X509Certificate,
     SubjectAlternativeNameHostname,
     SubjectAlternativeNameIP,
     SubjectAlternativeNameQualifier,
@@ -40,6 +40,7 @@ from octopoes.models.ooi.findings import (
     RetireJSFindingType,
     SnykFindingType,
 )
+from octopoes.models.ooi.monitoring import Incident, Application
 from octopoes.models.ooi.network import (
     Network,
     IPAddressV4,
@@ -64,7 +65,7 @@ from octopoes.models.ooi.web import (
 )
 
 CertificateType = Union[
-    Certificate,
+    X509Certificate,
     SubjectAlternativeNameHostname,
     SubjectAlternativeNameIP,
     SubjectAlternativeNameQualifier,
@@ -121,6 +122,7 @@ EmailSecurityType = Union[
     DKIMSelector,
     DKIMKey,
 ]
+MonitoringType = Union[Application, Incident]
 
 OOIType = Union[
     CertificateType,
@@ -131,6 +133,11 @@ OOIType = Union[
     ServiceType,
     SoftwareType,
     WebType,
+    DNSSPFMechanismIP,
+    DNSSPFMechanismHostname,
+    DNSSPFMechanismNetBlock,
+    DNSSPFRecord,
+    MonitoringType,
     EmailSecurityType,
 ]
 
