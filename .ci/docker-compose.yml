@@ -30,10 +30,9 @@ services:
     volumes:
       - ./.ci/health_check.py:/home/health_check.py
 
-  octopoes_api:
+  octopoes:
     build:
       context: .
-    command: uvicorn octopoes.api.api:app --host 0.0.0.0 --port 80
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -41,18 +40,6 @@ services:
         condition: service_healthy
     ports:
         - "127.0.0.1:29000:80"
-    env_file:
-      - ".ci/ci.env"
-
-  octopoes_api_worker:
-    build:
-      context: .
-    command: celery -A octopoes.tasks.tasks worker -E -B -s /tmp/celerybeat-schedule --loglevel=INFO
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-      crux:
-        condition: service_healthy
     env_file:
       - ".ci/ci.env"
 
