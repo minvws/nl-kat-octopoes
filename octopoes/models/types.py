@@ -33,6 +33,7 @@ from octopoes.models.ooi.findings import (
     CWEFindingType,
     RetireJSFindingType,
     SnykFindingType,
+    NessusFindingType
 )
 from octopoes.models.ooi.monitoring import Incident, Application
 from octopoes.models.ooi.network import (
@@ -83,6 +84,7 @@ FindingType = Union[
     RetireJSFindingType,
     CWEFindingType,
     SnykFindingType,
+    NessusFindingType,
 ]
 NetworkType = Union[
     Network,
