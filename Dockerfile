@@ -7,7 +7,7 @@ ARG USER_GID=1000
 
 WORKDIR /app/octopoes
 
-ENTRYPOINT ["/app/octopoes/entrypoint.sh"]
+#ENTRYPOINT ["/app/octopoes/entrypoint.sh"]
 
 RUN groupadd --gid $USER_GID octopoes
 RUN adduser --disabled-password --gecos '' --uid $USER_UID --gid $USER_GID octopoes

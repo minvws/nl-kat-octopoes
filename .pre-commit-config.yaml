@@ -33,16 +33,19 @@ repos:
     hooks: # pydantic and fastapi ship with mypy stubs
       - id: mypy
         additional_dependencies: ['types-PyYAML', 'types-requests', 'pydantic']
-        exclude: "bits|tests"
+        exclude: "bits|tests|packaging"
   - repo: https://github.com/PyCQA/pylint
     rev: v2.16.0b0
     hooks:
       - id: pylint
-        exclude: "bits|tests"
+        exclude: "bits|tests|packaging"
   - repo: https://github.com/PyCQA/pydocstyle
     rev: 6.3.0
     hooks:
       - id: pydocstyle
+        exclude: "bits|tests|packaging"
+        args:
+          - --ignore=D104,D203
   - repo: https://github.com/PyCQA/flake8
     rev: 6.0.0
     hooks:

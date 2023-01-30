@@ -1,3 +1,5 @@
+"""Listeners."""
+
 import json
 import logging
 import urllib.parse
@@ -56,12 +58,14 @@ class RabbitMQ(Listener):
         raise NotImplementedError
 
     def basic_consume(self, queue: str) -> None:
+        """Consume messages from the RabbitMQ queue."""
         connection = pika.BlockingConnection(pika.URLParameters(self.dsn))
         channel = connection.channel()
         channel.basic_consume(queue, on_message_callback=self.callback)
         channel.start_consuming()
 
     def get(self, queue: str) -> Optional[Dict[str, object]]:
+        """Get a message from the RabbitMQ queue."""
         connection = pika.BlockingConnection(pika.URLParameters(self.dsn))
         channel = connection.channel()
         method, properties, body = channel.basic_get(queue)
@@ -81,6 +85,7 @@ class RabbitMQ(Listener):
         properties: pika.spec.BasicProperties,
         body: bytes,
     ) -> None:
+        """Callback function for the RabbitMQ channel."""
         self.logger.debug(" [x] Received %r", body)
 
         self.dispatch(body)
@@ -88,7 +93,7 @@ class RabbitMQ(Listener):
         channel.basic_ack(method.delivery_tag)
 
     def is_healthy(self) -> bool:
-        """Check if the RabbitMQ connection is healthy"""
+        """Check if the RabbitMQ connection is healthy."""
         parsed_url = urllib.parse.urlparse(self.dsn)
         if parsed_url.hostname is None or parsed_url.port is None:
             self.logger.warning(

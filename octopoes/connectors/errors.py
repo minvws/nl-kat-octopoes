@@ -1,13 +1,18 @@
+"""Connector errors."""
+
 import functools
 
 import pydantic
 
 
 class ValidationError(Exception):
+    """Validation error."""
+
     pass
 
 
 def exception_handler(func):
+    """Wrap function in exception handler."""
     @functools.wraps(func)
     def inner_function(*args, **kwargs):
         try:

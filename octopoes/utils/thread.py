@@ -1,3 +1,5 @@
+"""Threading logic."""
+
 import logging
 import threading
 from typing import Any, Callable, Optional
@@ -27,6 +29,7 @@ class ThreadRunner(threading.Thread):
         interval: float = 0.01,
         daemon: bool = False,
     ) -> None:
+        """Initialize the ThreadRunner class."""
         self.logger: logging.Logger = logging.getLogger(__name__)
         self.stop_event: threading.Event = stop_event
         self.interval: float = interval
@@ -36,6 +39,7 @@ class ThreadRunner(threading.Thread):
         super().__init__(target=self._target, daemon=daemon)
 
     def run(self) -> None:
+        """Run the thread."""
         while not self.stop_event.is_set():
             try:
                 self._target()
@@ -47,6 +51,7 @@ class ThreadRunner(threading.Thread):
             self.stop_event.wait(self.interval)
 
     def join(self, timeout: Optional[float] = None) -> None:
+        """Join the thread."""
         self.logger.debug("Stopping thread")
 
         self.stop_event.set()
@@ -55,4 +60,5 @@ class ThreadRunner(threading.Thread):
         self.logger.debug("Thread stopped")
 
     def stop(self) -> None:
+        """Stop the thread."""
         self.stop_event.set()

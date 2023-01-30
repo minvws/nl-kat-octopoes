@@ -6,7 +6,7 @@ from typing import Any, Callable, Dict
 
 from octopoes import context
 from octopoes.ingesters import Ingester
-from octopoes.models import Organisation
+from octopoes.models.organisation import Organisation
 from octopoes.server import server
 from octopoes.utils import thread
 

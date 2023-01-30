@@ -1,19 +1,23 @@
+"""Main processing logic for Octopoes."""
+
 import logging
 import threading
 from typing import Callable, Optional, Any, NoReturn
 
 from octopoes import context, utils, models
-from octopoes.models import Organisation
+from octopoes.models.organisation import Organisation
 
 
 class Ingester:
+    """Main data ingestion unit for an Organization."""
+
     def __init__(
         self,
         ctx: context.AppContext,
         ingester_id: str,
         organisation: Organisation,
     ):
-
+        """Initialize the ingester."""
         self.logger: logging.Logger = logging.getLogger(__name__)
 
         self.organisation = organisation
@@ -29,13 +33,7 @@ class Ingester:
         interval: float = 0.01,
         daemon: bool = False,
     ) -> None:
-        """Make a function run in a thread, and add it to the dict of threads.
-
-        Args:
-            func: The function to run in the thread.
-            interval: The interval to run the function.
-            daemon: Whether the thread should be a daemon.
-        """
+        """Make a function run in a thread, and add it to the dict of threads."""
         self.thread = utils.ThreadRunner(
             target=func,
             stop_event=self.stop_event,
@@ -51,12 +49,14 @@ class Ingester:
         self.logger.info("Stopped ingesters: %s", self.ingester_id)
 
     def run(self) -> NoReturn:
+        """Run the ingester."""
         self.run_in_thread(
             func=self.ingest,
             interval=60,
         )
 
     def ingest(self):
+        """Periodically ingest data."""
         self.logger.info("Ingesting... %s", self.ingester_id)
 
         # ingest model
