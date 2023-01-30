@@ -19,7 +19,7 @@ def run(
         parsed = parse(spf_value)
         # check if spf record passes the internet.nl parser
         if parsed is not None:
-            spf_record = DNSSPFRecord(dns_txt_record=input_ooi.reference, value=str(parsed), ttl=input_ooi.ttl)
+            spf_record = DNSSPFRecord(dns_txt_record=input_ooi.reference, value=input_ooi.value, ttl=input_ooi.ttl)
             # walk thourgh all mechanisms
             for mechanism in parsed[1]:
                 # ip4 and ip6 mechanisms
