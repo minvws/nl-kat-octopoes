@@ -5,6 +5,7 @@ from octopoes.models.ooi.dns.records import DNSTXTRecord
 from octopoes.models.ooi.dns.zone import Hostname
 from octopoes.models.ooi.email_security import DNSSPFRecord, DNSSPFMechanismIP, DNSSPFMechanismHostname
 from bits.spf_discovery.internetnl_spf_parser import parse
+from octopoes.models.ooi.findings import Finding, KATFindingType
 
 from octopoes.models.ooi.network import IPAddressV4, IPAddressV6, Network
 
@@ -44,8 +45,11 @@ def run(
                     spf_record.exp = mechanism.split("=", 1)[1]
                 if mechanism.endswith("all"):
                     spf_record.all = mechanism.strip("all")
-                yield spf_record
-
+            yield spf_record
+        else:
+            ft = KATFindingType(id="KAT-INVALID-SPF")
+            yield ft
+            yield Finding(finding_type=ft.reference, ooi=input_ooi.reference, description="This SPF record is invalid")
 
 def parse_ip_qualifiers(mechanism: str, input_ooi: DNSTXTRecord, spf_record: DNSSPFRecord) -> Iterator[str]:
     # split mechanism into qualifier and ip
@@ -56,15 +60,15 @@ def parse_ip_qualifiers(mechanism: str, input_ooi: DNSTXTRecord, spf_record: DNS
     if "/" in ip:
         ip, mask = ip.split("/")
     if mask is None:
-        if qualifier == "ipv4":
-            ip_address = IPAddressV4(address=ip, network=Reference.from_str(input_ooi.hostname.tokenized.network))
+        if qualifier == "ip4":
+            ip_address = IPAddressV4(address=ip, network=Network(name=input_ooi.hostname.tokenized.network.name).reference)
             yield ip_address
-            yield DNSSPFMechanismIP(spf_record=spf_record.reference, ip=ip_address.reference, mechanism="ipv4")
-        if qualifier == "ipv6":
-            ip_address = IPAddressV6(address=ip, network=Reference.from_str(input_ooi.hostname.tokenized.network))
+            yield DNSSPFMechanismIP(spf_record=spf_record.reference, ip=ip_address.reference, mechanism="ip4")
+        if qualifier == "ip6":
+            ip_address = IPAddressV6(address=ip, network=Network(name=input_ooi.hostname.tokenized.network.name).reference)
             yield ip_address
             yield DNSSPFMechanismIP(
-                spf_record=spf_record.reference, ip=ip_address.reference, qualifier=qualifier, mechanism="ipv6"
+                spf_record=spf_record.reference, ip=ip_address.reference, qualifier=qualifier, mechanism="ip6"
             )
 
 
