@@ -16,6 +16,7 @@ Add Several Append Origins
 
     Insert Regular Declaration
 
+
 *** Keywords ***
 Setup Test
     Start Monitoring    ${QUEUE_URI}
