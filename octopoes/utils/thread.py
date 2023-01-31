@@ -46,9 +46,9 @@ class ThreadRunner(threading.Thread):
         while not self.stop_event.is_set():
             try:
                 self._target()
-            except Exception as e:
-                self.exception = e
-                self.logger.exception(e)
+            except Exception as exc:  # pylint: disable=broad-except
+                self.exception = exc
+                self.logger.exception(exc)
                 self.stop()
 
             self.stop_event.wait(self.interval)

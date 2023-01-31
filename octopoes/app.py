@@ -62,18 +62,18 @@ class App:
         """Gracefully shutdown octopoes, and all threads."""
         self.logger.info("Shutting down...")
 
-        for i in self.ingesters.values():
-            i.stop()
+        for ingester in self.ingesters.values():
+            ingester.stop()
 
-        for t in self.threads.values():
-            t.join(5)
+        for thread_ in self.threads.values():
+            thread_.join(5)
 
         self.logger.info("Shutdown complete")
 
         # We're calling this here, because we want to issue a shutdown from
         # within a thread, otherwise it will not exit a docker container.
         # Source: https://stackoverflow.com/a/1489838/1346257
-        os._exit(1)
+        os._exit(1)  # pylint: disable=protected-access
 
     def _run_in_thread(
         self,
@@ -122,17 +122,17 @@ class App:
         ingester_orgs = {s.organisation.id for s in self.ingesters.values()}
         katalogus_orgs = {org.id for org in self.ctx.services.katalogus.get_organisations()}
 
-        self.logger.debug(f"Monitoring organisations: {katalogus_orgs}")
+        self.logger.debug("Monitoring organisations: %s", katalogus_orgs)
 
         additions = katalogus_orgs.difference(ingester_orgs)
         removals = ingester_orgs.difference(katalogus_orgs)
 
         for org_id in removals:
-            for s in self.ingesters.values():
-                if s.organisation.id != org_id:
+            for ingester in self.ingesters.values():
+                if ingester.organisation.id != org_id:
                     continue
 
-                del self.ingesters[s.ingester_id]
+                del self.ingesters[ingester.ingester_id]
                 break
 
         self.logger.info("Removed %s organisations from ingesters [org_ids=%s]", len(removals), removals)

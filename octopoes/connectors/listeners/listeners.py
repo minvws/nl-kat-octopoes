@@ -71,7 +71,7 @@ class RabbitMQ(Listener):
         """Get a message from the RabbitMQ queue."""
         connection = pika.BlockingConnection(pika.URLParameters(self.dsn))
         channel = connection.channel()
-        method, properties, body = channel.basic_get(queue)
+        method, _, body = channel.basic_get(queue)
 
         if body is None:
             return None
@@ -85,7 +85,7 @@ class RabbitMQ(Listener):
         self,
         channel: pika.channel.Channel,
         method: pika.spec.Basic.Deliver,
-        properties: pika.spec.BasicProperties,
+        _: pika.spec.BasicProperties,
         body: bytes,
     ) -> None:
         """Consume message."""

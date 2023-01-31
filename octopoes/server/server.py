@@ -6,7 +6,6 @@ from typing import Any, Dict
 import fastapi
 import uvicorn
 
-import octopoes
 from octopoes.context.context import AppContext
 from octopoes.ingesters.ingester import Ingester
 from octopoes.models.health import ServiceHealth

@@ -199,7 +199,7 @@ class HTTPService(Connector):
         """
         try:
             response.raise_for_status()
-        except requests.exceptions.HTTPError as e:
+        except requests.exceptions.HTTPError as exc:
             self.logger.error(
                 "Received bad response from %s. [name=%s, url=%s, response=%s]",
                 response.url,
@@ -207,4 +207,4 @@ class HTTPService(Connector):
                 response.url,
                 str(response.content),
             )
-            raise e
+            raise exc
