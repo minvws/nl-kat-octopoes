@@ -13,6 +13,7 @@ class ValidationError(Exception):
 
 def validation_handler(func):
     """Wrap function to handle pydantic validation errors."""
+
     @functools.wraps(func)
     def inner_function(*args, **kwargs):
         try:
