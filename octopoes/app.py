@@ -103,8 +103,7 @@ class App:
 
         We will create ingesters for all organisations in the Katalogus service.
         """
-        # orgs = self.ctx.services.katalogus.get_organisations()
-        orgs = [Organisation(id="_dev", name="Dev")]
+        orgs = self.ctx.services.katalogus.get_organisations()
         for org in orgs:
             ingester = self.create_ingester(org)
             self.ingesters[ingester.ingester_id] = ingester
@@ -160,7 +159,7 @@ class App:
             ingester.run()
 
         # Start monitors
-        # self._run_in_thread(name="monitor_organisations", func=self.monitor_organisations, interval=60)
+        self._run_in_thread(name="monitor_organisations", func=self.monitor_organisations, interval=60)
 
         # Main thread
         while not self.stop_event.is_set():
