@@ -1,3 +1,5 @@
+"""Application Context module."""
+
 import logging.config
 import threading
 from types import SimpleNamespace
@@ -24,7 +26,7 @@ class AppContext:
     """
 
     def __init__(self) -> None:
-        """Initializer of the AppContext class."""
+        """Initialize instance."""
         self.config: settings.Settings = settings.Settings()
 
         self.logger = logging.getLogger(__name__)

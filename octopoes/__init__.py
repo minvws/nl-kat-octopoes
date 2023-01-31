@@ -1,3 +1,5 @@
+"""Octopoes module."""
+
 from .app import App
 from .version import version
 

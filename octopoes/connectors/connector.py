@@ -1,3 +1,5 @@
+"""Base class for all connectors."""
+
 import logging
 import socket
 import time
@@ -7,7 +9,10 @@ import requests
 
 
 class Connector:
+    """Base class for all connectors."""
+
     def __init__(self):
+        """Initialize the connector."""
         self.logger = logging.getLogger(self.__class__.__name__)
 
     def is_host_available(self, hostname: str, port: int) -> bool:

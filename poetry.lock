@@ -610,7 +610,7 @@ tests = ["PasteDeploy", "WSGIProxy2", "coverage", "pyquery", "pytest", "pytest-c
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "84c2bc3ab78ce52c34370aec27343471ea661e6a77f18107ba5d082e2828970c"
+content-hash = "8754abab4a9b7ad9bd43e47e21e5418ef7ea8858eac845f977bd715c171c0241"
 
 [metadata.files]
 anyio = [

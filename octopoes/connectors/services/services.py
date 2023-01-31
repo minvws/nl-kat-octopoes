@@ -1,3 +1,5 @@
+"""HTTPService base class for making http requests to services that typically expose rest api endpoints."""
+
 import logging
 import urllib.parse
 from typing import Any, Dict, Optional
@@ -9,8 +11,7 @@ from ..connector import Connector
 
 
 class HTTPService(Connector):
-    """HTTPService exposes methods to make http requests to services that
-    typically expose rest api endpoints
+    """HTTPService exposes methods to make http requests to services that typically expose rest api endpoints.
 
     Attributes:
         logger:
@@ -39,8 +40,7 @@ class HTTPService(Connector):
     health_endpoint: Optional[str] = "/health"
 
     def __init__(self, host: str, source: str, timeout: int = 5, retries: int = 5):
-        """Initializer of the HTTPService class. During initialization the
-        host will be checked if it is available and healthy.
+        """Initialize instance. During initialization the host will be checked if it is available and healthy.
 
         Args:
             host:
@@ -89,7 +89,7 @@ class HTTPService(Connector):
         headers: Optional[Dict[str, Any]] = None,
         params: Optional[Dict[str, Any]] = None,
     ) -> requests.Response:
-        """Execute a HTTP GET request
+        """Execute a HTTP GET request.
 
         Args:
             headers:
@@ -123,7 +123,7 @@ class HTTPService(Connector):
         headers: Optional[Dict[str, Any]] = None,
         params: Optional[Dict[str, Any]] = None,
     ) -> requests.Response:
-        """Execute a HTTP POST request
+        """Execute a HTTP POST request.
 
         Args:
             headers:

@@ -1,3 +1,5 @@
+"""Octopoes application settings."""
+
 import os
 from pathlib import Path
 
@@ -23,4 +25,6 @@ class Settings(BaseSettings):
     dsn_rabbitmq: str = "amqp://guest:guest@rabbitmq:5672/kat"
 
     class Config:
+        """Settings configuration."""
+
         env_prefix = "octopoes_"

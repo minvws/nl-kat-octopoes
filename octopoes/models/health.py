@@ -1,12 +1,12 @@
+"""Health models for the server."""
+
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel
 
 
 class ServiceHealth(BaseModel):
-    """ServiceHealth is used as response model for health check in the
-    server.Server for the health endpoint.
-    """
+    """KAT response model for health check endpoint."""
 
     service: str
     healthy: bool = False

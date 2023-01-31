@@ -6,11 +6,13 @@ from typing import Any, Callable, Optional
 
 
 class ThreadRunner(threading.Thread):
-    """ThreadRunner extends threading.Thread to allow for graceful shutdown
-    using event signalling. Additionally to the standard threading.Thread
-    attributes we use the following attributes.
+    """
+    ThreadRunner extends threading.Thread to allow for graceful shutdown using event signalling.
 
-    Attributes:
+    Additionally, to the standard threading.Thread attributes we use the following attributes.
+
+    Attributes
+    ----------
         logger:
             The logger for the class.
         stop_event:
@@ -20,6 +22,7 @@ class ThreadRunner(threading.Thread):
         exception:
             A python Exception that can be set in order to signify that
             an exception has occured during the execution of the thread.
+
     """
 
     def __init__(

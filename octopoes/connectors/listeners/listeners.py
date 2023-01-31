@@ -11,7 +11,7 @@ from ..connector import Connector
 
 
 class Listener(Connector):
-    """The Listener base class interface
+    """The Listener base class interface.
 
     Attributes:
         name:
@@ -23,16 +23,19 @@ class Listener(Connector):
     name: Optional[str] = None
 
     def __init__(self) -> None:
+        """Initialize the Listener."""
         super().__init__()
         self.logger = logging.getLogger(__name__)
 
     def listen(self) -> None:
+        """Listen for messages."""
         raise NotImplementedError
 
 
 class RabbitMQ(Listener):
-    """A RabbitMQ Listener implementation that allows subclassing of specific
-    RabbitMQ channel listeners. You can subclass this class and set the
+    """A RabbitMQ Listener implementation that allows subclassing of specific RabbitMQ channel listeners.
+
+    You can subclass this class and set the
     channel and procedure that needs to be dispatched when receiving messages
     from a RabbitMQ queue.
 
@@ -43,7 +46,7 @@ class RabbitMQ(Listener):
     """
 
     def __init__(self, dsn: str):
-        """Initialize the RabbitMQ Listener
+        """Initialize the RabbitMQ Listener.
 
         Args:
             dsn:
@@ -54,7 +57,7 @@ class RabbitMQ(Listener):
         self.dsn = dsn
 
     def dispatch(self, body: bytes) -> None:
-        """Dispatch a message without a return value"""
+        """Dispatch a message without a return value."""
         raise NotImplementedError
 
     def basic_consume(self, queue: str) -> None:
@@ -85,7 +88,7 @@ class RabbitMQ(Listener):
         properties: pika.spec.BasicProperties,
         body: bytes,
     ) -> None:
-        """Callback function for the RabbitMQ channel."""
+        """Consume message."""
         self.logger.debug(" [x] Received %r", body)
 
         self.dispatch(body)

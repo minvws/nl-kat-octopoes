@@ -1,3 +1,5 @@
+"""Entrypoint for the octopoes package."""
+
 from octopoes import context
 
 from . import App

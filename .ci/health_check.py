@@ -1,3 +1,5 @@
+"""Health check script for the integration tests."""
+
 import sys
 import urllib.request
 

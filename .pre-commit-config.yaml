@@ -44,8 +44,6 @@ repos:
     hooks:
       - id: pydocstyle
         exclude: "bits|tests|packaging"
-        args:
-          - --ignore=D104,D203
   - repo: https://github.com/PyCQA/flake8
     rev: 6.0.0
     hooks:

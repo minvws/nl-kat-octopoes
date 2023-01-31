@@ -1,3 +1,5 @@
+"""Server that exposes API endpoints for Octopoes."""
+
 import logging
 from typing import Any, Dict
 
@@ -17,6 +19,7 @@ class Server:
         ctx: context.AppContext,
         ingesters: Dict[str, Ingester],
     ):
+        """Initialize the server."""
         self.logger: logging.Logger = logging.getLogger(__name__)
         self.ctx: context.AppContext = ctx
         self.ingesters = ingesters
@@ -39,9 +42,11 @@ class Server:
         )
 
     def root(self) -> Any:
+        """Root endpoint."""
         return None
 
     def health(self) -> Any:
+        """Health endpoint."""
         response = models.ServiceHealth(
             service="octopoes",
             healthy=True,
@@ -54,6 +59,7 @@ class Server:
         return response
 
     def run(self) -> None:
+        """Run the server."""
         uvicorn.run(
             self.api,
             host=self.ctx.config.api_host,

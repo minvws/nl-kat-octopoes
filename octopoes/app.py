@@ -1,3 +1,8 @@
+"""Main application class for Octopoes.
+
+This class is responsible for starting the application, monitoring organisations and running subthreads for each.
+"""
+
 import logging
 import os
 import threading
@@ -94,8 +99,9 @@ class App:
         self.threads[name].start()
 
     def initialize_ingesters(self) -> None:
-        """Initialize the ingesters for the Boefje tasks. We will create
-        ingesters for all organisations in the Katalogus service.
+        """Initialize the ingesters for the Boefje tasks.
+
+        We will create ingesters for all organisations in the Katalogus service.
         """
         # orgs = self.ctx.services.katalogus.get_organisations()
         orgs = [Organisation(id="_dev", name="Dev")]
@@ -112,9 +118,7 @@ class App:
         return Ingester(self.ctx, f"ingesters-{org.id}", organisation=org)
 
     def monitor_organisations(self) -> None:
-        """Monitor the organisations in the Katalogus service, and add/remove
-        organisations from the ingesters.
-        """
+        """Monitor the organisations in the Katalogus service, and add/remove organisations from the ingesters."""
         ingester_orgs = {s.organisation.id for s in self.ingesters.values()}
         katalogus_orgs = {org.id for org in self.ctx.services.katalogus.get_organisations()}
 
@@ -142,12 +146,11 @@ class App:
         self.logger.info("Added %s organisations to ingesters [org_ids=%s]", len(additions), additions)
 
     def run(self) -> None:
-        """Start the Octopoes application, and run in threads the
-        following processes:
+        """Start the Octopoes application, and run in threads the following processes.
 
-            * api server
-            * ingesters
-            * monitors
+        * api server
+        * ingesters
+        * monitors
         """
         # API Server
         self._run_in_thread(name="server", func=self.server.run, daemon=False)
