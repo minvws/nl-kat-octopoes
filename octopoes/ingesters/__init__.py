@@ -1,1 +1,1 @@
-from .ingester import Ingester
+"""Ingester class."""

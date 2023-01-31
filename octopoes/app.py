@@ -1,12 +1,17 @@
+"""Main application class for Octopoes.
+
+This class is responsible for starting the application, monitoring organisations and running subthreads for each.
+"""
+
 import logging
 import os
 import threading
 import time
 from typing import Any, Callable, Dict
 
-from octopoes import context
-from octopoes.ingesters import Ingester
-from octopoes.models import Organisation
+from octopoes.context.context import AppContext
+from octopoes.ingesters.ingester import Ingester
+from octopoes.models.organisation import Organisation
 from octopoes.server import server
 from octopoes.utils import thread
 
@@ -33,7 +38,7 @@ class App:
 
     organisation: Organisation
 
-    def __init__(self, ctx: context.AppContext) -> None:
+    def __init__(self, ctx: AppContext) -> None:
         """Initialize the application.
 
         Args:
@@ -42,7 +47,7 @@ class App:
                 external services connections).
         """
         self.logger: logging.Logger = logging.getLogger(__name__)
-        self.ctx: context.AppContext = ctx
+        self.ctx: AppContext = ctx
         self.threads: Dict[str, thread.ThreadRunner] = {}
         self.stop_event: threading.Event = self.ctx.stop_event
 
@@ -57,18 +62,18 @@ class App:
         """Gracefully shutdown octopoes, and all threads."""
         self.logger.info("Shutting down...")
 
-        for i in self.ingesters.values():
-            i.stop()
+        for ingester in self.ingesters.values():
+            ingester.stop()
 
-        for t in self.threads.values():
-            t.join(5)
+        for thread_ in self.threads.values():
+            thread_.join(5)
 
         self.logger.info("Shutdown complete")
 
         # We're calling this here, because we want to issue a shutdown from
         # within a thread, otherwise it will not exit a docker container.
         # Source: https://stackoverflow.com/a/1489838/1346257
-        os._exit(1)
+        os._exit(1)  # pylint: disable=protected-access
 
     def _run_in_thread(
         self,
@@ -94,11 +99,11 @@ class App:
         self.threads[name].start()
 
     def initialize_ingesters(self) -> None:
-        """Initialize the ingesters for the Boefje tasks. We will create
-        ingesters for all organisations in the Katalogus service.
+        """Initialize the ingesters for the Boefje tasks.
+
+        We will create ingesters for all organisations in the Katalogus service.
         """
-        # orgs = self.ctx.services.katalogus.get_organisations()
-        orgs = [Organisation(id="_dev", name="Dev")]
+        orgs = self.ctx.services.katalogus.get_organisations()
         for org in orgs:
             ingester = self.create_ingester(org)
             self.ingesters[ingester.ingester_id] = ingester
@@ -112,23 +117,21 @@ class App:
         return Ingester(self.ctx, f"ingesters-{org.id}", organisation=org)
 
     def monitor_organisations(self) -> None:
-        """Monitor the organisations in the Katalogus service, and add/remove
-        organisations from the ingesters.
-        """
+        """Monitor the organisations in the Katalogus service, and add/remove organisations from the ingesters."""
         ingester_orgs = {s.organisation.id for s in self.ingesters.values()}
         katalogus_orgs = {org.id for org in self.ctx.services.katalogus.get_organisations()}
 
-        self.logger.debug(f"Monitoring organisations: {katalogus_orgs}")
+        self.logger.debug("Monitoring organisations: %s", katalogus_orgs)
 
         additions = katalogus_orgs.difference(ingester_orgs)
         removals = ingester_orgs.difference(katalogus_orgs)
 
         for org_id in removals:
-            for s in self.ingesters.values():
-                if s.organisation.id != org_id:
+            for ingester in self.ingesters.values():
+                if ingester.organisation.id != org_id:
                     continue
 
-                del self.ingesters[s.ingester_id]
+                del self.ingesters[ingester.ingester_id]
                 break
 
         self.logger.info("Removed %s organisations from ingesters [org_ids=%s]", len(removals), removals)
@@ -142,12 +145,11 @@ class App:
         self.logger.info("Added %s organisations to ingesters [org_ids=%s]", len(additions), additions)
 
     def run(self) -> None:
-        """Start the Octopoes application, and run in threads the
-        following processes:
+        """Start the Octopoes application, and run in threads the following processes.
 
-            * api server
-            * ingesters
-            * monitors
+        * api server
+        * ingesters
+        * monitors
         """
         # API Server
         self._run_in_thread(name="server", func=self.server.run, daemon=False)
@@ -157,7 +159,7 @@ class App:
             ingester.run()
 
         # Start monitors
-        # self._run_in_thread(name="monitor_organisations", func=self.monitor_organisations, interval=60)
+        self._run_in_thread(name="monitor_organisations", func=self.monitor_organisations, interval=60)
 
         # Main thread
         while not self.stop_event.is_set():
