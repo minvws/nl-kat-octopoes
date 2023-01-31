@@ -19,21 +19,21 @@ interface BaseObject {
    primary_key: ID!
 }
 
-interface BaseOOI implements BaseObject {
+interface OOI implements BaseObject {
    primary_key: ID!
    human_readable: String!
 }
 
 
 # Networking
-type Network implements BaseObject & BaseOOI {
+type Network implements BaseObject & OOI {
     primary_key: ID! @natural_key(fields: ["name"])
     human_readable: String! @format(format: "{name}")
 
     name: String!
 }
 
-type Hostname implements BaseObject & BaseOOI {
+type Hostname implements BaseObject & OOI {
     primary_key: ID! @natural_key(fields: ["network", "name"])
     human_readable: String! @format(format: "{name} @ {network.name}")
 
@@ -43,7 +43,7 @@ type Hostname implements BaseObject & BaseOOI {
 
 
 # IPAddress and services
-interface IPAddressBase implements BaseObject & BaseOOI {
+interface IPAddress implements BaseObject & OOI {
     primary_key: ID! @natural_key(fields: ["network", "address"])
     human_readable: String! @format(format: "{address} @ {network.name}")
 
@@ -51,7 +51,7 @@ interface IPAddressBase implements BaseObject & BaseOOI {
     address: String!
 }
 
-type IPv4Address implements BaseObject & BaseOOI & IPAddressBase {
+type IPv4Address implements BaseObject & OOI & IPAddress {
     primary_key: ID! @natural_key(fields: ["network", "address"])
     human_readable: String! @format(format: "{address} @ {network.name}")
 
@@ -59,7 +59,7 @@ type IPv4Address implements BaseObject & BaseOOI & IPAddressBase {
     address: String! @constraint(format: "ipv4")
 }
 
-type IPv6Address implements BaseObject & BaseOOI & IPAddressBase {
+type IPv6Address implements BaseObject & OOI & IPAddress {
     primary_key: ID! @natural_key(fields: ["network", "address"])
     human_readable: String! @format(format: "{address} @ {network.name}")
 
@@ -67,30 +67,30 @@ type IPv6Address implements BaseObject & BaseOOI & IPAddressBase {
     address: String! @constraint(format: "ipv6")
 }
 
-union IPAddress = IPv4Address | IPv6Address
+union UIPAddress = IPv4Address | IPv6Address
 
 
 enum PortProtocol { tcp, udp }
 enum PortState { open, closed, filtered, open_filtered, closed_filtered }
 
-type IPPort implements BaseObject & BaseOOI {
+type IPPort implements BaseObject & OOI {
     primary_key: ID! @natural_key(fields: ["ip_address", "port"])
     human_readable: String! @format(format: "{address.address}:{port}")
 
-    address: IPAddress! @reverse_name(name: "ports")
+    address: UIPAddress! @reverse_name(name: "ports")
     protocol: PortProtocol
     port: Int!
     state: PortState
 }
 
-type Service implements BaseObject & BaseOOI {
+type Service implements BaseObject & OOI {
     primary_key: ID! @natural_key(fields: ["name"])
     human_readable: String! @format(format: "{name}")
 
     name: String!
 }
 
-type IPService implements BaseObject & BaseOOI {
+type IPService implements BaseObject & OOI {
     primary_key: ID! @natural_key(fields: ["port", "service"])
     human_readable: String! @format(format: "{service.name} @ {port.address.address}:{port.port}")
 
@@ -102,7 +102,7 @@ type IPService implements BaseObject & BaseOOI {
 # DNS
 enum DNSRecordType { A, AAAA, CNAME, MX, NS, PTR, SOA, SRV, TXT }
 
-interface DNSRecordBase implements BaseObject & BaseOOI {
+interface DNSRecordBase implements BaseObject & OOI {
     primary_key: ID! @natural_key(fields: ["hostname", "type", "value"])
     human_readable: String! @format(format: "{hostname.name} {type} {value}")
 
@@ -112,7 +112,7 @@ interface DNSRecordBase implements BaseObject & BaseOOI {
     ttl: Int
 }
 
-type DNSARecord implements BaseObject & BaseOOI & DNSRecordBase {
+type DNSARecord implements BaseObject & OOI & DNSRecordBase {
     primary_key: ID! @natural_key(fields: ["hostname", "type", "value"])
     human_readable: String! @format(format: "{hostname.name} {type} {value}")
 
@@ -122,7 +122,7 @@ type DNSARecord implements BaseObject & BaseOOI & DNSRecordBase {
     address: IPv4Address @reverse_name(name: "dns_a_records")
     ttl: Int
 }
-type DNSAAAARecord implements BaseObject & BaseOOI & DNSRecordBase {
+type DNSAAAARecord implements BaseObject & OOI & DNSRecordBase {
     primary_key(naturalKeys: [String!] = ["name", "type", "value"]): ID!
     human_readable: String! @format(format: "{hostname.name} {type} {value}")
 
@@ -132,7 +132,7 @@ type DNSAAAARecord implements BaseObject & BaseOOI & DNSRecordBase {
     address(reverse_name: String = "dns_aaaa_records"): IPv6Address
     ttl: Int
 }
-type DNSMXRecord implements BaseObject & BaseOOI & DNSRecordBase {
+type DNSMXRecord implements BaseObject & OOI & DNSRecordBase {
     primary_key(naturalKeys: [String!] = ["name", "type", "value"]): ID!
     human_readable: String! @format(format: "{hostname.name} {type} {value}")
 
@@ -142,7 +142,7 @@ type DNSMXRecord implements BaseObject & BaseOOI & DNSRecordBase {
     mx_hostname: Hostname @reverse_name(name: "mx_hostname_of")
     ttl: Int
 }
-type DNSSOARecord implements BaseObject & BaseOOI & DNSRecordBase {
+type DNSSOARecord implements BaseObject & OOI & DNSRecordBase {
     primary_key(naturalKeys: [String!] = ["name", "type", "value"]): ID!
     human_readable: String! @format(format: "{hostname.name} {type} {value}")
 
@@ -158,12 +158,4 @@ type DNSSOARecord implements BaseObject & BaseOOI & DNSRecordBase {
 
     primary_ns: Hostname @reverse_name(name: "primary_ns_of")
     admin_email: Hostname @reverse_name(name: "dns_soa_admin_email_of")
-}
-
-union DNSRecord = DNSARecord | DNSAAAARecord | DNSMXRecord | DNSSOARecord
-
-union OOI = Network | Hostname | IPv4Address | IPv6Address | IPPort | Service | IPService | DNSARecord | DNSAAAARecord | DNSMXRecord | DNSSOARecord
-
-type Query {
-  OOI: [OOI!]
 }

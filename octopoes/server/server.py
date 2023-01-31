@@ -12,11 +12,14 @@ from pydantic import BaseModel
 
 from octopoes.context.context import AppContext
 from octopoes.ingesters.ingester import Ingester
+from octopoes.models.ingester import Ingester as IngesterModel
 from octopoes.models.health import ServiceHealth
 from octopoes.version import version
 
 
 class GraphqlRequest(BaseModel):
+    """Request body for graphql queries."""
+
     operationName: Optional[str]
     query: str
 
@@ -55,7 +58,7 @@ class Server:
             path="/ingesters",
             endpoint=self.get_ingesters,
             methods=["GET"],
-            response_model=List[models.Ingester],
+            response_model=List[IngesterModel],
             status_code=200,
         )
 
@@ -101,29 +104,33 @@ class Server:
         return response
 
     def get_ingesters(self) -> Any:
-        return [models.Ingester(id=ingester) for ingester in self.ingesters.keys()]
+        """List ingesters."""
+        return [IngesterModel(id=ingester) for ingester in self.ingesters.keys()]
 
     def get_graphql_schema(self, ingester_id: str) -> Any:
+        """Serve graphql schema."""
         if ingester_id not in self.ingesters:
             return status.HTTP_404_NOT_FOUND
 
-        return print_schema(self.ingesters[ingester_id].schema)
+        return print_schema(self.ingesters[ingester_id].current_schema.full_schema)
 
     def get_graphiql(self, ingester_id: str) -> Any:
+        """Serve graphiql frontend."""
         if ingester_id not in self.ingesters:
             return status.HTTP_404_NOT_FOUND
 
         # load template from disk
         graphiql_template = Path(__file__).parent / "static" / "graphiql.html"
-        with open(graphiql_template, "r") as f:
-            template = f.read()
+        with open(graphiql_template, "r") as graphiql_html:
+            template = graphiql_html.read()
             return template.replace("{{ingester_id}}", ingester_id)
 
     def post_graphql(self, ingester_id: str, request_body: GraphqlRequest) -> Any:
+        """Execute grqpql query."""
         if ingester_id not in self.ingesters:
             return status.HTTP_404_NOT_FOUND
 
-        result = graphql_sync(self.ingesters[ingester_id].schema, request_body.query)
+        result = graphql_sync(self.ingesters[ingester_id].current_schema.full_schema, request_body.query)
         return result.formatted
 
     def run(self) -> None:

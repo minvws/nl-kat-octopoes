@@ -46,4 +46,3 @@ def test_schema__directive__schemavalidationerror():
     new_schema = schema_manager.load_schema(Path(__file__).parent / "fixtures" / "schema_directive.graphql")
     with pytest.raises(SchemaValidationException) as _:
         schema_manager.validate(new_schema)
-

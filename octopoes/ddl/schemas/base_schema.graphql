@@ -1,25 +1,25 @@
 # Native Kat
+directive @constraint (
+    format: String = ""
+) on FIELD_DEFINITION
+
+directive @natural_key (
+    fields: [String]!
+) on FIELD_DEFINITION
+
+directive @format (
+    format: String = ""
+) on FIELD_DEFINITION
+
+directive @reverse_name (
+    name: String = ""
+) on FIELD_DEFINITION
+
 interface BaseObject {
    primary_key: ID!
 }
 
-interface BaseOOI implements BaseObject {
+interface OOI implements BaseObject {
    primary_key: ID!
    human_readable: String!
-}
-
-enum OriginType {
-    declaration
-    observation
-    inference
-}
-
-type Origin implements BaseObject {
-    primary_key(naturalKeys: [String!] = ["name", "type", "value"]): ID!
-    human_readable: String!
-
-    origin_type: String!
-    source: BaseOOI
-    method: String!
-    results: [BaseOOI]
 }
