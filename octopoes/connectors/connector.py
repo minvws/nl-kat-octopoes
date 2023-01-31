@@ -1,3 +1,5 @@
+"""Base class for all connectors."""
+
 import logging
 import socket
 import time
@@ -7,7 +9,10 @@ import requests
 
 
 class Connector:
-    def __init__(self):
+    """Base class for all connectors."""
+
+    def __init__(self) -> None:
+        """Initialize the connector."""
         self.logger = logging.getLogger(self.__class__.__name__)
 
     def is_host_available(self, hostname: str, port: int) -> bool:
@@ -30,13 +35,13 @@ class Connector:
         """
         try:
             response = requests.get(f"{host}{health_endpoint}", timeout=5)
-            healthy = response.json().get("healthy")
+            healthy: bool = response.json().get("healthy")
             return healthy
         except requests.exceptions.RequestException as exc:
             self.logger.warning("Exception: %s", exc)
             return False
 
-    def retry(self, func: Callable, *args, **kwargs) -> bool:
+    def retry(self, func: Callable, *args, **kwargs) -> bool:  # type: ignore
         """Retry a function until it returns True.
 
         Args:

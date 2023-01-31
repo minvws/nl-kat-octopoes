@@ -1,1 +1,1 @@
-from .context import AppContext
+"""Thread context."""

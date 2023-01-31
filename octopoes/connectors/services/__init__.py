@@ -1,3 +1,3 @@
-from .bytes import Bytes
-from .katalogus import Katalogus
+"""Octopoes classes to connect to external services."""
+
 from .services import HTTPService

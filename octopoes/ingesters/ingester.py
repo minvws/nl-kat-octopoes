@@ -1,3 +1,5 @@
+"""Main processing logic for Octopoes."""
+
 import logging
 import threading
 from pathlib import Path
@@ -5,30 +7,31 @@ from typing import Callable, Optional, Any, NoReturn, cast
 
 from graphql import print_schema, GraphQLSchema, GraphQLResolveInfo, GraphQLObjectType
 
-from octopoes import context, utils
-from octopoes.connectors.services.xtdb import XTDBSession, XTDBHTTPClient, OperationType
+from octopoes.context.context import AppContext
 from octopoes.ddl.ddl import SchemaManager
-from octopoes.models import Organisation
+from octopoes.models.organisation import Organisation
+from octopoes.utils.thread import ThreadRunner
 
 logger = logging.getLogger(__name__)
 
 
 class Ingester:
+    """Main data ingestion unit for an Organization."""
 
     def __init__(
         self,
-        ctx: context.AppContext,
+        ctx: AppContext,
         ingester_id: str,
         organisation: Organisation,
     ):
-
+        """Initialize the ingester."""
         self.logger: logging.Logger = logging.getLogger(__name__)
 
         self.organisation = organisation
 
         self.ctx = ctx
         self.ingester_id = ingester_id
-        self.thread: Optional[utils.ThreadRunner] = None
+        self.thread: Optional[ThreadRunner] = None
         self.stop_event: threading.Event = self.ctx.stop_event
 
         self.xtdb_client = XTDBHTTPClient(self.ctx.config.dsn_xtdb)
@@ -41,14 +44,8 @@ class Ingester:
         interval: float = 0.01,
         daemon: bool = False,
     ) -> None:
-        """Make a function run in a thread, and add it to the dict of threads.
-
-        Args:
-            func: The function to run in the thread.
-            interval: The interval to run the function.
-            daemon: Whether the thread should be a daemon.
-        """
-        self.thread = utils.ThreadRunner(
+        """Make a function run in a thread, and add it to the dict of threads."""
+        self.thread = ThreadRunner(
             target=func,
             stop_event=self.stop_event,
             interval=interval,
@@ -58,11 +55,13 @@ class Ingester:
 
     def stop(self) -> None:
         """Stop the ingesters."""
-        self.thread.join(5)
+        if self.thread is not None:
+            self.thread.join(5)
 
         self.logger.info("Stopped ingesters: %s", self.ingester_id)
 
-    def run(self) -> NoReturn:
+    def run(self) -> NoReturn:  # type: ignore
+        """Run the ingester."""
         self.run_in_thread(
             func=self.ingest,
             interval=30,
@@ -91,7 +90,8 @@ class Ingester:
                 raise ValueError("Declaration origin must have exactly one result")
             origin["source"] = origin["results"][0]
 
-    def ingest(self):
+    def ingest(self) -> None:
+        """Periodically ingest data."""
         self.logger.info("Ingesting... %s", self.ingester_id)
 
         # load new schema (from disk for now)
@@ -142,8 +142,8 @@ class Ingester:
         # wait for processing to complete
 
         # loop(while things to do)
-            # execute relational bits
-            # wait for processing to complete
+        # execute relational bits
+        # wait for processing to complete
 
         # perform dynamic programming computations
         # - propagate scan profiles
