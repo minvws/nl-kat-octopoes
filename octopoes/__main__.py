@@ -1,9 +1,8 @@
 """Entrypoint for the octopoes package."""
+from octopoes.app import App
+from octopoes.context.context import AppContext
 
-from octopoes import context
-
-from . import App
 
 if __name__ == "__main__":
-    app = App(context.AppContext())
+    app = App(AppContext())
     app.run()

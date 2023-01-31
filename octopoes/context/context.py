@@ -6,9 +6,9 @@ from types import SimpleNamespace
 
 import yaml
 
-import octopoes
 from octopoes.config import settings
-from octopoes.connectors import services
+from octopoes.connectors.services.katalogus import Katalogus
+from octopoes.version import version
 
 
 class AppContext:
@@ -39,16 +39,16 @@ class AppContext:
         except FileNotFoundError:
             self.logger.warning(f"No log config found at: {self.config.log_cfg}")
 
-        self.katalogus_svc = services.Katalogus(
+        self.katalogus_svc = Katalogus(
             host=self.config.dsn_katalogus,
-            source=f"octopoes/{octopoes.__version__}",
+            source=f"octopoes/{version}",
         )
 
         # Register external services, SimpleNamespace allows us to use dot
         # notation
         self.services: SimpleNamespace = SimpleNamespace(
             **{
-                services.Katalogus.name: self.katalogus_svc,
+                Katalogus.name: self.katalogus_svc,
             }
         )
 

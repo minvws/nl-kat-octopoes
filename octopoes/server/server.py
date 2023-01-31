@@ -7,8 +7,10 @@ import fastapi
 import uvicorn
 
 import octopoes
-from octopoes import context, models
-from octopoes.ingesters import Ingester
+from octopoes.context.context import AppContext
+from octopoes.ingesters.ingester import Ingester
+from octopoes.models.health import ServiceHealth
+from octopoes.version import version
 
 
 class Server:
@@ -16,12 +18,12 @@ class Server:
 
     def __init__(
         self,
-        ctx: context.AppContext,
+        ctx: AppContext,
         ingesters: Dict[str, Ingester],
     ):
         """Initialize the server."""
         self.logger: logging.Logger = logging.getLogger(__name__)
-        self.ctx: context.AppContext = ctx
+        self.ctx: AppContext = ctx
         self.ingesters = ingesters
 
         self.api = fastapi.FastAPI()
@@ -37,7 +39,7 @@ class Server:
             path="/health",
             endpoint=self.health,
             methods=["GET"],
-            response_model=models.ServiceHealth,
+            response_model=ServiceHealth,
             status_code=200,
         )
 
@@ -47,10 +49,10 @@ class Server:
 
     def health(self) -> Any:
         """Health endpoint."""
-        response = models.ServiceHealth(
+        response = ServiceHealth(
             service="octopoes",
             healthy=True,
-            version=octopoes.__version__,
+            version=version,
         )
 
         for service in self.ctx.services.__dict__.values():

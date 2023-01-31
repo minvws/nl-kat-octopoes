@@ -1,6 +1,7 @@
 """Connector errors."""
 
 import functools
+from typing import Callable, Any, TypeVar, cast
 
 import pydantic
 
@@ -11,14 +12,17 @@ class ValidationError(Exception):
     pass
 
 
-def exception_handler(func):
+funcT = TypeVar("funcT", bound=Callable[..., Any])
+
+
+def exception_handler(func: funcT) -> funcT:
     """Wrap function in exception handler."""
 
     @functools.wraps(func)
-    def inner_function(*args, **kwargs):
+    def inner_function(*args: Any, **kwargs: Any) -> Any:
         try:
             return func(*args, **kwargs)
         except pydantic.error_wrappers.ValidationError as exc:
             raise ValidationError("Not able to parse response from external service.") from exc
 
-    return inner_function
+    return cast(funcT, inner_function)

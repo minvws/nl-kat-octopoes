@@ -4,8 +4,9 @@ import logging
 import threading
 from typing import Callable, Optional, Any, NoReturn
 
-from octopoes import context, utils, models
+from octopoes.context.context import AppContext
 from octopoes.models.organisation import Organisation
+from octopoes.utils.thread import ThreadRunner
 
 
 class Ingester:
@@ -13,7 +14,7 @@ class Ingester:
 
     def __init__(
         self,
-        ctx: context.AppContext,
+        ctx: AppContext,
         ingester_id: str,
         organisation: Organisation,
     ):
@@ -24,7 +25,7 @@ class Ingester:
 
         self.ctx = ctx
         self.ingester_id = ingester_id
-        self.thread: Optional[utils.ThreadRunner] = None
+        self.thread: Optional[ThreadRunner] = None
         self.stop_event: threading.Event = self.ctx.stop_event
 
     def run_in_thread(
@@ -34,7 +35,7 @@ class Ingester:
         daemon: bool = False,
     ) -> None:
         """Make a function run in a thread, and add it to the dict of threads."""
-        self.thread = utils.ThreadRunner(
+        self.thread = ThreadRunner(
             target=func,
             stop_event=self.stop_event,
             interval=interval,
@@ -44,18 +45,19 @@ class Ingester:
 
     def stop(self) -> None:
         """Stop the ingesters."""
-        self.thread.join(5)
+        if self.thread is not None:
+            self.thread.join(5)
 
         self.logger.info("Stopped ingesters: %s", self.ingester_id)
 
-    def run(self) -> NoReturn:
+    def run(self) -> NoReturn:  # type: ignore
         """Run the ingester."""
         self.run_in_thread(
             func=self.ingest,
             interval=60,
         )
 
-    def ingest(self):
+    def ingest(self) -> None:
         """Periodically ingest data."""
         self.logger.info("Ingesting... %s", self.ingester_id)
 

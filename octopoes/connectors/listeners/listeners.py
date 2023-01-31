@@ -3,7 +3,7 @@
 import json
 import logging
 import urllib.parse
-from typing import Dict, Optional
+from typing import Dict, Optional, cast
 
 import pika
 
@@ -79,7 +79,7 @@ class RabbitMQ(Listener):
         response = json.loads(body)
         channel.basic_ack(method.delivery_tag)
 
-        return response
+        return cast(Dict[str, object], response)
 
     def callback(
         self,

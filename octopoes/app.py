@@ -9,8 +9,8 @@ import threading
 import time
 from typing import Any, Callable, Dict
 
-from octopoes import context
-from octopoes.ingesters import Ingester
+from octopoes.context.context import AppContext
+from octopoes.ingesters.ingester import Ingester
 from octopoes.models.organisation import Organisation
 from octopoes.server import server
 from octopoes.utils import thread
@@ -38,7 +38,7 @@ class App:
 
     organisation: Organisation
 
-    def __init__(self, ctx: context.AppContext) -> None:
+    def __init__(self, ctx: AppContext) -> None:
         """Initialize the application.
 
         Args:
@@ -47,7 +47,7 @@ class App:
                 external services connections).
         """
         self.logger: logging.Logger = logging.getLogger(__name__)
-        self.ctx: context.AppContext = ctx
+        self.ctx: AppContext = ctx
         self.threads: Dict[str, thread.ThreadRunner] = {}
         self.stop_event: threading.Event = self.ctx.stop_event
 

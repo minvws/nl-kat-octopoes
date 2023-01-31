@@ -13,7 +13,7 @@ class Katalogus(HTTPService):
     name = "katalogus"
 
     @exception_handler
-    def get_organisation(self, organisation_id) -> Organisation:
+    def get_organisation(self, organisation_id: str) -> Organisation:
         """Get organisation by id from katalogus."""
         url = f"{self.host}/v1/organisations/{organisation_id}"
         response = self.get(url)
