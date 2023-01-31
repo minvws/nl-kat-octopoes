@@ -1,9 +1,9 @@
 # Native Kat
-interface BaseObject_v1 {
+interface BaseObject {
    primary_key: ID!
 }
 
-interface OOI_v1 implements BaseObject_v1 {
+interface BaseOOI implements BaseObject {
    primary_key: ID!
    human_readable: String!
 }

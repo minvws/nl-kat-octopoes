@@ -10,7 +10,9 @@ from graphql import (
     GraphQLInterfaceType,
     GraphQLSchema,
     print_type,
+    specified_directives,
 )
+
 
 logger = getLogger(__name__)
 
@@ -53,8 +55,8 @@ class SchemaManager:
     def __init__(self):
         self.base_schema = self.load_schema(path=Path(__file__).parent / "schemas" / "base_schema.graphql")
 
-        self.ooi_type = cast(GraphQLInterfaceType, self.base_schema.type_map["OOI_v1"])
-        self.base_type = cast(GraphQLInterfaceType, self.base_schema.type_map["BaseObject_v1"])
+        self.ooi_type = cast(GraphQLInterfaceType, self.base_schema.type_map["BaseOOI"])
+        self.base_type = cast(GraphQLInterfaceType, self.base_schema.type_map["BaseObject"])
 
         self.current_schema = self.base_schema
 
@@ -68,14 +70,14 @@ class SchemaManager:
     def validate(self, new_schema: GraphQLSchema) -> None:
 
         # Validate root types
-        if "OOI_v1" not in new_schema.type_map:
-            raise SchemaValidationException("Schema must contain OOI_v1 interface")
+        if "BaseOOI" not in new_schema.type_map:
+            raise SchemaValidationException("Schema must contain OOI interface")
 
-        if "BaseObject_v1" not in new_schema.type_map:
-            raise SchemaValidationException("Schema must contain BaseObject_v1 interface")
+        if "BaseObject" not in new_schema.type_map:
+            raise SchemaValidationException("Schema must contain BaseObject interface")
 
-        new_ooi_type = cast(GraphQLInterfaceType, new_schema.type_map["OOI_v1"])
-        new_base_type = cast(GraphQLInterfaceType, new_schema.type_map["BaseObject_v1"])
+        new_ooi_type = cast(GraphQLInterfaceType, new_schema.type_map["BaseOOI"])
+        new_base_type = cast(GraphQLInterfaceType, new_schema.type_map["BaseObject"])
 
         if print_type(new_ooi_type) != print_type(self.ooi_type):
             raise SchemaValidationException(f"{self.ooi_type.name} must equal orginal type")

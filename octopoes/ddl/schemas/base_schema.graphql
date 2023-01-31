@@ -1,9 +1,9 @@
 # Native Kat
-interface BaseObject_v1 {
+interface BaseObject {
    primary_key: ID!
 }
 
-interface OOI_v1 implements BaseObject_v1 {
+interface BaseOOI implements BaseObject {
    primary_key: ID!
    human_readable: String!
 }
@@ -14,12 +14,12 @@ enum OriginType {
     inference
 }
 
-type Origin_v1 implements BaseObject_v1 {
+type Origin implements BaseObject {
     primary_key(naturalKeys: [String!] = ["name", "type", "value"]): ID!
     human_readable: String!
 
     origin_type: String!
-    source: OOI_v1
+    source: BaseOOI
     method: String!
-    results: [OOI_v1]
+    results: [BaseOOI]
 }
