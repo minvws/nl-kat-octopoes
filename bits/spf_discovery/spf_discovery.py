@@ -51,6 +51,7 @@ def run(
             yield ft
             yield Finding(finding_type=ft.reference, ooi=input_ooi.reference, description="This SPF record is invalid")
 
+
 def parse_ip_qualifiers(mechanism: str, input_ooi: DNSTXTRecord, spf_record: DNSSPFRecord) -> Iterator[str]:
     # split mechanism into qualifier and ip
     qualifier, ip = mechanism.split(":", 1)
@@ -61,11 +62,15 @@ def parse_ip_qualifiers(mechanism: str, input_ooi: DNSTXTRecord, spf_record: DNS
         ip, mask = ip.split("/")
     if mask is None:
         if qualifier == "ip4":
-            ip_address = IPAddressV4(address=ip, network=Network(name=input_ooi.hostname.tokenized.network.name).reference)
+            ip_address = IPAddressV4(
+                address=ip, network=Network(name=input_ooi.hostname.tokenized.network.name).reference
+            )
             yield ip_address
             yield DNSSPFMechanismIP(spf_record=spf_record.reference, ip=ip_address.reference, mechanism="ip4")
         if qualifier == "ip6":
-            ip_address = IPAddressV6(address=ip, network=Network(name=input_ooi.hostname.tokenized.network.name).reference)
+            ip_address = IPAddressV6(
+                address=ip, network=Network(name=input_ooi.hostname.tokenized.network.name).reference
+            )
             yield ip_address
             yield DNSSPFMechanismIP(
                 spf_record=spf_record.reference, ip=ip_address.reference, qualifier=qualifier, mechanism="ip6"
