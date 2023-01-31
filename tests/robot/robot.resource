@@ -44,6 +44,13 @@ Insert Empty Normalizer Output
 Insert Calvin Outputs
     Insert Declaration    tests/fixtures/calvin_output_1.json
     Insert Declaration    tests/fixtures/calvin_output_2.json
+
+    Await Sync
+
+Insert Regular Declarations
+    Insert Declaration    tests/fixtures/regular_manual_declaration.json
+    Insert Declaration    tests/fixtures/regular_manual_declaration_with_null_values.json
+
     Await Sync
 
 Get Url
