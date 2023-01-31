@@ -90,7 +90,8 @@ class DNSSPFMechanismNetBlock(DNSSPFMechanism):
     def format_reference_human_readable(cls, reference: Reference) -> str:
         return (
             f"SPF Record of {reference.tokenized.spf_record.dns_txt_record.hostname.name} "
-            + f" {reference.tokenized.mechanism} {reference.tokenized.netblock.start_ip}/{reference.tokenized.netblock.mask}"
+            + f" {reference.tokenized.mechanism} {reference.tokenized.netblock.start_ip}"
+            f"/{reference.tokenized.netblock.mask}"
         )
 
 
@@ -151,4 +152,7 @@ class DKIMKey(OOI):
 
     @classmethod
     def format_reference_human_readable(cls, reference: Reference) -> str:
-        return f"DKIM key of {reference.tokenized.dkim_selector.selector} on {reference.tokenized.dkim_selector.hostname.name}"
+        return (
+            f"DKIM key of {reference.tokenized.dkim_selector.selector} on "
+            f"{reference.tokenized.dkim_selector.hostname.name}"
+        )

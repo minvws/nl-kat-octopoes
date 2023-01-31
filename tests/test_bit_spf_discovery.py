@@ -48,7 +48,8 @@ def test_spf_discovery_invalid_():
 def test_spf_discovery_intermediate_success():
     dnstxt_record = DNSTXTRecord(
         hostname=Reference.from_str("Hostname|internet|example1.com."),
-        value="v=spf1 a:example.com mx mx:deferrals.domain.com ptr:otherdomain.com exists:example4.com ?include:example2.com ~all",
+        value="v=spf1 a:example.com mx mx:deferrals.domain.com ptr:otherdomain.com "
+        "exists:example4.com ?include:example2.com ~all",
     )
     results = list(run(dnstxt_record, []))
 
