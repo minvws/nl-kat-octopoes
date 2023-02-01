@@ -112,7 +112,7 @@ class Ingester:
         self.persist_schema()
 
         # attach resolvers to current_schema
-        self.current_schema.full_schema.query_type.fields["OOI"].resolve = self.resolve_graphql_type
+        self.current_schema.hydrated_schema.schema.query_type.fields["OOI"].resolve = self.resolve_graphql_type
 
         # ingest normalizer configs
         # ingest bit configs
@@ -134,7 +134,9 @@ class Ingester:
             "state": "open",
             "protocol": "tcp",
         }
-        self.dataclass_generator.parse_obj(hostname)
+        hostname_ = self.dataclass_generator.parse_obj(hostname)
+
+        print(hostname_)
 
         # wait for processing to complete
 

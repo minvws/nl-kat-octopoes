@@ -54,7 +54,7 @@ enum PortState { open, closed, filtered, open_filtered, closed_filtered }
 
 type IPPort implements BaseObject & OOI {
   object_type: String!
-  primary_key(natural_key: [String!] = ["ip_address", "port"]): ID!
+  primary_key(natural_key: [String!] = ["address", "port"]): ID!
   human_readable(format: String! = "{address.address}:{port}"): String!
 
   address(reverse_name: String! = "ports"): UIPAddress!
@@ -110,7 +110,7 @@ type DNSAAAARecord implements BaseObject & OOI & DNSRecordBase {
   primary_key(natural_key: [String!] = ["hostname", "type", "value"]): ID!
   human_readable(format: String! = "{hostname.name} {type} {value}"): String!
 
-  hostname(reverse_name: String = "dns_aaaa_records"): Hostname!
+  hostname(reverse_name: String! = "dns_aaaa_records"): Hostname!
   type: DNSRecordType!
   value: String!
   address(reverse_name: String = "dns_aaaa_records"): IPv6Address

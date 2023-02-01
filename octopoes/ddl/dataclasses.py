@@ -4,26 +4,62 @@ from __future__ import annotations
 from enum import Enum
 from ipaddress import IPv4Address, IPv6Address
 from logging import getLogger
-from typing import Dict, Union, Literal, Any
+from typing import Dict, Union, Literal, Any, Optional, List
 
+import mmh3
 from graphql import (
     GraphQLObjectType,
     GraphQLUnionType,
     GraphQLField,
     GraphQLEnumType,
 )
-from pydantic import create_model
+from pydantic import create_model, BaseModel
 
-from octopoes.ddl.ddl import OpenKATSchema
+from octopoes.ddl.ddl import KATSchema
 
 logger = getLogger(__name__)
+
+
+class BaseObjectMetaClass:
+    natural_key_attrs: List[str]
+
+
+class BaseObject(BaseModel, BaseObjectMetaClass):
+    object_type: str
+    primary_key: Optional[str]
+
+    @staticmethod
+    def str_value(value: Any) -> str:
+        if isinstance(value, Enum):
+            value = str(value.value)
+        if isinstance(value, BaseObject):
+            value = value.primary_key
+        return str(value)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        natural_key_keys = ["object_type"] + sorted(self.natural_key_attrs)
+        natural_key_values = [self.str_value(getattr(self, key)) for key in natural_key_keys]
+        natural_key = "".join(natural_key_values)
+        self.primary_key = mmh3.hash_bytes(natural_key.encode("utf-8")).hex()
+
+
+class OOIMetaClass:
+    human_readable_format: str
+
+
+class OOI(BaseObject, OOIMetaClass):
+    human_readable: Optional[str]
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
 
 class DataclassGenerator:
 
     """Generates (Pydantic) dataclasses from a GraphQL schema."""
 
-    def __init__(self, schema: OpenKATSchema):
+    def __init__(self, schema: KATSchema):
         """Initialize instance."""
         self.schema = schema
         self.dataclasses: Dict[str, type] = {}
@@ -59,12 +95,21 @@ class DataclassGenerator:
 
         logger.info("Generating dataclass for %s", object_type.name)
 
-        fields = {"object_type": (Literal[(object_type.name,)], ...)}
+        fields = {"object_type": (Literal[(object_type.name,)], object_type.name)}
         for name, type_ in object_type.fields.items():
             if name not in ("object_type", "primary_key", "human_readable"):
                 fields[name] = (self.graphql_field_to_python_type(type_), ...)
 
-        dataclass = create_model(object_type.name, **fields)
+        base_model = BaseObject
+        if self.schema.ooi_type in object_type.interfaces:
+            base_model = OOI
+
+        dataclass = create_model(object_type.name, __base__=base_model, **fields)
+
+        dataclass.natural_key_attrs = object_type.fields["primary_key"].args["natural_key"].default_value
+        if base_model == OOI:
+            dataclass.human_readable_format = object_type.fields["human_readable"].args["format"].default_value
+
         self.dataclasses[object_type.name] = dataclass
         return dataclass
 

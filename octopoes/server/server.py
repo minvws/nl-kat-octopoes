@@ -107,12 +107,12 @@ class Server:
         """List ingesters."""
         return [IngesterModel(id=ingester) for ingester in self.ingesters.keys()]
 
-    def get_graphql_schema(self, ingester_id: str) -> Any:
+    def get_graphql_schema(self, ingester_id: str) -> str:
         """Serve graphql schema."""
         if ingester_id not in self.ingesters:
             return status.HTTP_404_NOT_FOUND
 
-        return print_schema(self.ingesters[ingester_id].current_schema.full_schema)
+        return print_schema(self.ingesters[ingester_id].current_schema.hydrated_schema.schema)
 
     def get_graphiql(self, ingester_id: str) -> Any:
         """Serve graphiql frontend."""
@@ -130,7 +130,7 @@ class Server:
         if ingester_id not in self.ingesters:
             return status.HTTP_404_NOT_FOUND
 
-        result = graphql_sync(self.ingesters[ingester_id].current_schema.full_schema, request_body.query)
+        result = graphql_sync(self.ingesters[ingester_id].current_schema.hydrated_schema.schema, request_body.query)
         return result.formatted
 
     def run(self) -> None:
