@@ -9,7 +9,7 @@ from octopoes.models.persistence import ReferenceField
 
 
 class DNSRecord(OOI, abc.ABC):
-    hostname: Reference = ReferenceField(Hostname, max_issue_scan_level=0, max_inherit_scan_level=2)
+    hostname: Reference = ReferenceField(Hostname, max_issue_scan_level=1, max_inherit_scan_level=2)
     dns_record_type: Literal["A", "AAAA", "CNAME", "MX", "NS", "PTR", "SOA", "SRV", "TXT"]
     value: str
     ttl: Optional[int]  # todo: validation
@@ -105,7 +105,7 @@ class DNSSOARecord(DNSRecord):
     object_type: Literal["DNSSOARecord"] = "DNSSOARecord"
     dns_record_type: Literal["SOA"] = "SOA"
 
-    soa_hostname: Reference = ReferenceField(Hostname)
+    soa_hostname: Reference = ReferenceField(Hostname, max_issue_scan_level=1, max_inherit_scan_level=1)
     serial: Optional[int]
     retry: Optional[int]
     refresh: Optional[int]
