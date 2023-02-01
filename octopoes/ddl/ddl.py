@@ -97,9 +97,15 @@ class KATSchema:
             t for t in self.schema.type_map.values() if isinstance(t, GraphQLObjectType) and not t.name.startswith("__")
         ]
 
+    @property
+    def union_types(self) -> list[GraphQLUnionType]:
+        """Return all union types."""
+        return [
+            t for t in self.schema.type_map.values() if isinstance(t, GraphQLUnionType) and not t.name.startswith("__")
+        ]
+
 
 class HydratedSchema(KATSchema):
-
     @property
     def ooi_union_type(self) -> GraphQLUnionType:
         """Return the OOI union type."""
@@ -183,6 +189,9 @@ class SchemaLoader:
                     ),
                     args={"natural_key": GraphQLArgument(GraphQLList(GraphQLString), default_value=["ooi"])},
                 ),
+                "human_readable": GraphQLField(
+                    GraphQLNonNull(GraphQLString), args={"format": GraphQLArgument(GraphQLString, default_value="")}
+                ),
                 "type": GraphQLField(scan_profile_type),
                 "level": GraphQLField(scan_level),
                 "ooi": GraphQLField(ooi_union),
@@ -196,7 +205,7 @@ class SchemaLoader:
         return KATSchema(GraphQLSchema(**full_schema_kwargs))
 
     @cached_property
-    def hydrated_schema(self):
+    def hydrated_schema(self) -> HydratedSchema:
 
         # Construct Query Type
         ooi_union = self.full_schema.schema.type_map["UOOI"]

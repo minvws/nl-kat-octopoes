@@ -5,7 +5,7 @@ import threading
 from datetime import timezone, datetime
 from typing import Callable, Optional, Any, NoReturn
 
-from graphql import print_schema, GraphQLResolveInfo
+from graphql import print_schema, GraphQLResolveInfo, GraphQLUnionType, GraphQLObjectType
 from requests import HTTPError
 
 from octopoes.connectors.services.xtdb import XTDBHTTPClient, XTDBSession, OperationType
@@ -40,6 +40,7 @@ class Ingester:
         # Try to load the current_schema from XTDB
         self.current_schema = self.load_schema()
         self.dataclass_generator = DataclassGenerator(self.current_schema.openkat_schema)
+        self.set_resolvers()
 
     def load_schema(self) -> SchemaLoader:
         """Load the current_schema from XTDB."""
@@ -94,23 +95,34 @@ class Ingester:
             interval=30,
         )
 
-    def resolve_graphql_type(self, _: Any, type_info: GraphQLResolveInfo) -> Any:
-        """Fetch instances of type from XTDB."""
-        print(self.xtdb_client)
-        print(type_info)
-        if type_info.return_type.of_type == self.current_schema.hydrated_schema.ooi_union_type:
-            print('request all objects')
-        return []
+    def deserialize_obj(self, obj: dict) -> dict:
+        # remove prefix from fields, but not object_type
+        non_prefixed_fields = ["xt/id", "object_type", "primary_key", "human_readable"]
+        data = {key.split("/")[1]: value for key, value in obj.items() if key not in non_prefixed_fields}
+        data.update({key: value for key, value in obj.items() if key in non_prefixed_fields})
+        return data
 
     def serialize_obj(self, obj: BaseObject):
+
+        pk_overrides = {}
+        for key, value in obj:
+            if isinstance(value, BaseObject):
+                pk_overrides[key] = value.primary_key
+
         # export model with pydantic serializers
         export = json.loads(obj.json())
+        export.update(pk_overrides)
 
         # prefix fields, but not object_type
-        export.pop("object_type")
-        export = {f"{obj.object_type}/{key}": value for key, value in export.items() if value is not None}
+        non_prefixed_fields = ["object_type", "primary_key", "human_readable"]
+        for key in non_prefixed_fields:
+            export.pop(key)
 
-        export["object_type"] = obj.object_type
+        export = {f"{obj.object_type}/{key}": value for key, value in export.items()}
+
+        for key in non_prefixed_fields:
+            export[key] = getattr(obj, key)
+
         export["xt/id"] = obj.primary_key
         return export
 
@@ -120,25 +132,71 @@ class Ingester:
             xtdb_session.add((OperationType.PUT, self.serialize_obj(o), datetime.now(timezone.utc)))
         xtdb_session.commit()
 
+    def resolve_graphql_union(self, data: Any, type_info: GraphQLResolveInfo, union: GraphQLUnionType) -> Any:
+        return data["object_type"]
+
+    def resolve_graphql_type(self, parent_obj: Any, type_info: GraphQLResolveInfo, **kwargs) -> Any:
+        """Fetch instances of type from XTDB."""
+        print(self.xtdb_client)
+        print(type_info)
+
+        # outgoing relation
+        if parent_obj and type_info.field_name in parent_obj:
+            query = """
+                {{:query {{:find [(pull ?entity [*])]
+                           :where [[?entity :xt/id \"{}\"]] }} }}""".format(parent_obj[type_info.field_name])
+            results = self.xtdb_client.query(query)
+            return self.deserialize_obj(results[0][0])
+
+        if type_info.return_type.of_type == self.current_schema.hydrated_schema.ooi_union_type:
+            query = """
+                {:query {:find [(pull ?entity [*])]
+                         :where [[?entity :object_type]] } }"""
+            results = self.xtdb_client.query(query)
+            return [self.deserialize_obj(row[0]) for row in results]
+        return []
+
+    def set_resolvers(self):
+
+        # Set resolver for root OOI union type
+        self.current_schema.hydrated_schema.schema.query_type.fields["OOI"].resolve = self.resolve_graphql_type
+
+        # Set type resolver for all union types
+        for union_type in self.current_schema.hydrated_schema.union_types:
+            union_type.resolve_type = self.resolve_graphql_union
+
+        # Set resolver for all object types
+        for object_type in self.current_schema.hydrated_schema.object_types:
+            for field in object_type.fields.values():
+                real_type = field.type.of_type if getattr(field.type, "of_type", None) else field.type
+                if isinstance(real_type, GraphQLObjectType):
+                    field.resolve = self.resolve_graphql_type
+                if isinstance(real_type, GraphQLUnionType):
+                    field.resolve = self.resolve_graphql_type
+
+    def update_schema(self, new_schema: SchemaLoader):
+        self.current_schema = new_schema
+        self.persist_schema()
+        self.dataclass_generator = DataclassGenerator(self.current_schema.openkat_schema)
+        self.set_resolvers()
+
     def ingest(self) -> None:
         """Periodically ingest data."""
         logger.info("Ingesting... %s", self.ingester_id)
 
-        # load new current_schema (from disk for now)
+        # create node in XTDB
+        XTDBHTTPClient(f"{self.ctx.config.dsn_xtdb}").create_node(self.ingester_id)
+
+        # load new current_schema
         new_schema = SchemaLoader()
 
         # compare with previous current_schema and validate
-        self.current_schema = new_schema
-
-        self.persist_schema()
-
-        # attach resolvers to current_schema
-        self.current_schema.hydrated_schema.schema.query_type.fields["OOI"].resolve = self.resolve_graphql_type
+        if new_schema.openkat_schema_definition != self.current_schema.openkat_schema_definition:
+            logger.info("New schema detected, updating")
+            self.update_schema(new_schema)
 
         # ingest normalizer configs
         # ingest bit configs
-
-        self.dataclass_generator = DataclassGenerator(self.current_schema.openkat_schema)
 
         # ingest normalizer outputs / origins
         port = {

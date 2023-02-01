@@ -104,7 +104,7 @@ class XTDBHTTPClient:
         if valid_time is None:
             valid_time = datetime.now(timezone.utc)
         res = self._session.post(
-            "/request_body",
+            "/query",
             params={"valid-time": valid_time.isoformat()},
             data=query,
             headers={"Content-Type": "application/edn"},
@@ -127,6 +127,19 @@ class XTDBHTTPClient:
 
         self._verify_response(res)
         self.await_transaction(res.json()["txId"])
+
+    def create_node(self, name: str) -> None:
+        res = self._session.post("/create-node", json={"node": name})
+
+        self._verify_response(res)
+
+    def delete_node(self, name: str) -> None:
+        res = self._session.post(
+            "/delete-node",
+            json={"node": name},
+        )
+
+        self._verify_response(res)
 
 
 class XTDBSession:

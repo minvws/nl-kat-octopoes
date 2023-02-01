@@ -2,6 +2,7 @@
 interface BaseObject {
   object_type: String!
   primary_key: ID!
+  human_readable: String!
 }
 
 interface OOI implements BaseObject {

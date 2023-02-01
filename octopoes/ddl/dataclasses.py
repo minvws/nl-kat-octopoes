@@ -22,11 +22,13 @@ logger = getLogger(__name__)
 
 class BaseObjectMetaClass:
     natural_key_attrs: List[str]
+    human_readable_format: str
 
 
 class BaseObject(BaseModel, BaseObjectMetaClass):
     object_type: str
     primary_key: Optional[str]
+    human_readable: Optional[str]
 
     @staticmethod
     def str_value(value: Any) -> str:
@@ -38,25 +40,25 @@ class BaseObject(BaseModel, BaseObjectMetaClass):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
         natural_key_keys = ["object_type"] + sorted(self.natural_key_attrs)
         natural_key_values = [self.str_value(getattr(self, key)) for key in natural_key_keys]
         natural_key = "".join(natural_key_values)
         self.primary_key = mmh3.hash_bytes(natural_key.encode("utf-8")).hex()
 
+        self.human_readable = str(self)
+        # self.human_readable = self.human_readable_format.format(**self.dict())
+
     @property
     def sub_objects(self) -> List[BaseObject]:
         return [self] + [getattr(self, key) for key in self.__fields__ if isinstance(getattr(self, key), BaseObject)]
 
+    class Config:
+        use_enum_values = True
 
-class OOIMetaClass:
-    human_readable_format: str
 
-
-class OOI(BaseObject, OOIMetaClass):
-    human_readable: Optional[str]
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+class OOI(BaseObject):
+    ...
 
 
 class DataclassGenerator:
@@ -111,8 +113,7 @@ class DataclassGenerator:
         dataclass = create_model(object_type.name, __base__=base_model, **fields)
 
         dataclass.natural_key_attrs = object_type.fields["primary_key"].args["natural_key"].default_value
-        if base_model == OOI:
-            dataclass.human_readable_format = object_type.fields["human_readable"].args["format"].default_value
+        dataclass.human_readable_format = object_type.fields["human_readable"].args["format"].default_value
 
         self.dataclasses[object_type.name] = dataclass
         return dataclass

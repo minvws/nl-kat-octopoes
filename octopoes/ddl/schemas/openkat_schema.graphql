@@ -31,7 +31,7 @@ interface IPAddress implements BaseObject & OOI {
 type IPv4Address implements BaseObject & OOI & IPAddress {
   object_type: String!
   primary_key(natural_key: [String!] = ["network", "address"]): ID!
-  human_readable(format: String! = "{address} @ {network.name}"): String!
+  human_readable(format: String! = "{address} @ {network['name']}"): String!
 
   network(reverse_name: String! = "ip_v4_addresses"): Network!
   address: IPv4!
