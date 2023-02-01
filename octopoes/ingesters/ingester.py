@@ -98,6 +98,8 @@ class Ingester:
         """Fetch instances of type from XTDB."""
         print(self.xtdb_client)
         print(type_info)
+        if type_info.return_type.of_type == self.current_schema.hydrated_schema.ooi_union_type:
+            print('request all objects')
         return []
 
     def serialize_obj(self, obj: BaseObject):

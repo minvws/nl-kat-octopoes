@@ -98,6 +98,14 @@ class KATSchema:
         ]
 
 
+class HydratedSchema(KATSchema):
+
+    @property
+    def ooi_union_type(self) -> GraphQLUnionType:
+        """Return the OOI union type."""
+        return cast(GraphQLUnionType, self.schema.type_map["UOOI"])
+
+
 class SchemaLoader:
     """Loads an OpenKAT schema definition to validate and calculate derived schemas.
 
@@ -198,4 +206,4 @@ class SchemaLoader:
         hydrated_schema_kwargs["query"] = query
         hydrated_schema_kwargs["types"] = hydrated_schema_kwargs["types"] + (query,)
 
-        return KATSchema(GraphQLSchema(**hydrated_schema_kwargs))
+        return HydratedSchema(GraphQLSchema(**hydrated_schema_kwargs))
