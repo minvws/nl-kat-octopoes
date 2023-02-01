@@ -15,7 +15,11 @@ def run(
 ) -> Iterator[OOI]:
 
     # Only needs DMARC when it is the fqdn and not a subdomain
-    if input_ooi.name == input_ooi.fqdn.tokenized.name and not tldextract.extract(input_ooi.name).subdomain:
+    if (
+        input_ooi.name == input_ooi.fqdn.tokenized.name
+        and not tldextract.extract(input_ooi.name).subdomain
+        and tldextract.extract(input_ooi.name).domain
+    ):
         if not additional_oois:
             ft = KATFindingType(id="KAT-NO-DMARC")
             yield ft
