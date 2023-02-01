@@ -4,7 +4,7 @@ from __future__ import annotations
 from enum import Enum
 from ipaddress import IPv4Address, IPv6Address
 from logging import getLogger
-from typing import Dict, Union, Literal, Any, Optional, List
+from typing import Dict, Union, Literal, Any, Optional, List, Iterator, Type, cast
 
 import mmh3
 from graphql import (
@@ -16,6 +16,7 @@ from graphql import (
 from pydantic import create_model, BaseModel
 
 from octopoes.ddl.ddl import KATSchema
+from octopoes.utils.dict_utils import flatten
 
 logger = getLogger(__name__)
 
@@ -38,7 +39,7 @@ class BaseObject(BaseModel, BaseObjectMetaClass):
             value = value.primary_key
         return str(value)
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
 
         natural_key_keys = ["object_type"] + sorted(self.natural_key_attrs)
@@ -46,12 +47,14 @@ class BaseObject(BaseModel, BaseObjectMetaClass):
         natural_key = "".join(natural_key_values)
         self.primary_key = mmh3.hash_bytes(natural_key.encode("utf-8")).hex()
 
-        self.human_readable = str(self)
-        # self.human_readable = self.human_readable_format.format(**self.dict())
+        self.human_readable = self.human_readable_format.format(**flatten(self.dict()))
 
     @property
-    def sub_objects(self) -> List[BaseObject]:
-        return [self] + [getattr(self, key) for key in self.__fields__ if isinstance(getattr(self, key), BaseObject)]
+    def sub_objects(self) -> Iterator[BaseObject]:
+        for key, value in self:
+            if isinstance(value, BaseObject):
+                yield from value.sub_objects
+        yield self
 
     class Config:
         use_enum_values = True
@@ -68,10 +71,10 @@ class DataclassGenerator:
     def __init__(self, schema: KATSchema):
         """Initialize instance."""
         self.schema = schema
-        self.dataclasses: Dict[str, type] = {}
+        self.dataclasses: Dict[str, Type[BaseObject]] = {}
         self.generate_pydantic_models()
 
-    def graphql_field_to_python_type(self, field: GraphQLField) -> type:
+    def graphql_field_to_python_type(self, field: GraphQLField) -> Any:
         """Convert a GraphQL field to a Python type."""
         real_type = field.type.of_type if getattr(field.type, "of_type", None) else field.type
         if real_type.name == "String":
@@ -94,7 +97,7 @@ class DataclassGenerator:
             types_ = [self.generate_pydantic_model(t) for t in real_type.types]
             return Union[tuple(types_)]
 
-    def generate_pydantic_model(self, object_type: GraphQLObjectType) -> type:
+    def generate_pydantic_model(self, object_type: GraphQLObjectType) -> Type[BaseObject]:
         """Generate a dataclass for the given object type."""
         if object_type.name in self.dataclasses:
             return self.dataclasses[object_type.name]
@@ -106,17 +109,17 @@ class DataclassGenerator:
             if name not in ("object_type", "primary_key", "human_readable"):
                 fields[name] = (self.graphql_field_to_python_type(type_), ...)
 
-        base_model = BaseObject
+        base_model: Type[BaseObject] = BaseObject
         if self.schema.ooi_type in object_type.interfaces:
             base_model = OOI
 
-        dataclass = create_model(object_type.name, __base__=base_model, **fields)
+        dataclass = create_model(object_type.name, __base__=base_model, **fields)  # type: ignore
 
         dataclass.natural_key_attrs = object_type.fields["primary_key"].args["natural_key"].default_value
         dataclass.human_readable_format = object_type.fields["human_readable"].args["format"].default_value
 
         self.dataclasses[object_type.name] = dataclass
-        return dataclass
+        return cast(Type[BaseObject], dataclass)
 
     def generate_pydantic_models(self) -> None:
         """Generate data classes for all object types."""

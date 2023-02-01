@@ -1,7 +1,7 @@
 type Hostname implements BaseObject & OOI {
   object_type: String!
   primary_key(natural_key: [String!] = ["network", "name"]): ID!
-  human_readable(format: String! = "{name} @ {network.name}"): String!
+  human_readable(format: String! = "{name} @ {network_name}"): String!
 
   name: HostnameX!
   network(reverse_name: String = "hostnames"): Network!
@@ -22,7 +22,7 @@ type Network implements BaseObject & OOI {
 interface IPAddress implements BaseObject & OOI {
   object_type: String!
   primary_key(natural_key: [String!] = ["network", "address"]): ID!
-  human_readable(format: String! = "{address} @ {network.name}"): String!
+  human_readable(format: String! = "{address} @ {network_name}"): String!
 
   network(reverse_name: String! = "ip_addresses"): Network!
   #  address: String!
@@ -31,7 +31,7 @@ interface IPAddress implements BaseObject & OOI {
 type IPv4Address implements BaseObject & OOI & IPAddress {
   object_type: String!
   primary_key(natural_key: [String!] = ["network", "address"]): ID!
-  human_readable(format: String! = "{address} @ {network['name']}"): String!
+  human_readable(format: String! = "{address} @ {network_name}"): String!
 
   network(reverse_name: String! = "ip_v4_addresses"): Network!
   address: IPv4!
@@ -40,7 +40,7 @@ type IPv4Address implements BaseObject & OOI & IPAddress {
 type IPv6Address implements BaseObject & OOI & IPAddress {
   object_type: String!
   primary_key(natural_key: [String!] = ["network", "address"]): ID!
-  human_readable(format: String! = "{address} @ {network.name}"): String!
+  human_readable(format: String! = "{address} @ {network_name}"): String!
 
   network(reverse_name: String! = "ip_v6_addresses"): Network!
   address: IPv6!
@@ -55,7 +55,7 @@ enum PortState { open, closed, filtered, open_filtered, closed_filtered }
 type IPPort implements BaseObject & OOI {
   object_type: String!
   primary_key(natural_key: [String!] = ["address", "port"]): ID!
-  human_readable(format: String! = "{address.address}:{port}"): String!
+  human_readable(format: String! = "{address_address}:{port}"): String!
 
   address(reverse_name: String! = "ports"): UIPAddress!
   protocol: PortProtocol
@@ -74,7 +74,7 @@ type Service implements BaseObject & OOI {
 type IPService implements BaseObject & OOI {
   object_type: String!
   primary_key(natural_key: [String!] = ["port", "service"]): ID!
-  human_readable(format: String! = "{service.name} @ {port.address.address}:{port.port}"): String!
+  human_readable(format: String! = "{service_name} @ {port_address_address}:{port_port}"): String!
 
   port(reverse_name: String! = "services"): IPPort!
   service(reverse_name: String! = "ip_services"): Service!
@@ -86,7 +86,7 @@ enum DNSRecordType { A, AAAA, CNAME, MX, NS, PTR, SOA, SRV, TXT }
 interface DNSRecordBase implements BaseObject & OOI {
   object_type: String!
   primary_key(natural_key: [String!] = ["hostname", "type", "value"]): ID!
-  human_readable(format: String! = "{hostname.name} {type} {value}"): String!
+  human_readable(format: String! = "{hostname_name} {type} {value}"): String!
 
   hostname(reverse_name: String! = "dns_records"): Hostname!
   type: DNSRecordType!
@@ -97,7 +97,7 @@ interface DNSRecordBase implements BaseObject & OOI {
 type DNSARecord implements BaseObject & OOI & DNSRecordBase {
   object_type: String!
   primary_key(natural_key: [String!] = ["hostname", "type", "value"]): ID!
-  human_readable(format: String! = "{hostname.name} {type} {value}"): String!
+  human_readable(format: String! = "{hostname_name} {type} {value}"): String!
 
   hostname(reverse_name: String! = "dns_a_records"): Hostname!
   type: DNSRecordType!
@@ -108,7 +108,7 @@ type DNSARecord implements BaseObject & OOI & DNSRecordBase {
 type DNSAAAARecord implements BaseObject & OOI & DNSRecordBase {
   object_type: String!
   primary_key(natural_key: [String!] = ["hostname", "type", "value"]): ID!
-  human_readable(format: String! = "{hostname.name} {type} {value}"): String!
+  human_readable(format: String! = "{hostname_name} {type} {value}"): String!
 
   hostname(reverse_name: String! = "dns_aaaa_records"): Hostname!
   type: DNSRecordType!
@@ -119,7 +119,7 @@ type DNSAAAARecord implements BaseObject & OOI & DNSRecordBase {
 type DNSMXRecord implements BaseObject & OOI & DNSRecordBase {
   object_type: String!
   primary_key(natural_key: [String!] = ["hostname", "type", "value"]): ID!
-  human_readable(format: String! = "{hostname.name} {type} {value}"): String!
+  human_readable(format: String! = "{hostname_name} {type} {value}"): String!
 
   hostname(reverse_name: String! = "dns_mx_records"): Hostname!
   type: DNSRecordType!
@@ -130,7 +130,7 @@ type DNSMXRecord implements BaseObject & OOI & DNSRecordBase {
 type DNSSOARecord implements BaseObject & OOI & DNSRecordBase {
   object_type: String!
   primary_key(natural_key: [String!] = ["hostname", "type", "value"]): ID!
-  human_readable(format: String! = "{hostname.name} {type} {value}"): String!
+  human_readable(format: String! = "{hostname_name} {type} {value}"): String!
 
   hostname(reverse_name: String! = "dns_soa_records"): Hostname!
   type: DNSRecordType!

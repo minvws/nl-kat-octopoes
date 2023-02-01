@@ -3,7 +3,7 @@ import json
 import logging
 import threading
 from datetime import timezone, datetime
-from typing import Callable, Optional, Any, NoReturn
+from typing import Callable, Optional, Any, NoReturn, Dict
 
 from graphql import print_schema, GraphQLResolveInfo, GraphQLUnionType, GraphQLObjectType
 from requests import HTTPError
@@ -95,14 +95,14 @@ class Ingester:
             interval=30,
         )
 
-    def deserialize_obj(self, obj: dict) -> dict:
+    def deserialize_obj(self, obj: Dict[str, Any]) -> Dict[str, Any]:
         # remove prefix from fields, but not object_type
         non_prefixed_fields = ["xt/id", "object_type", "primary_key", "human_readable"]
         data = {key.split("/")[1]: value for key, value in obj.items() if key not in non_prefixed_fields}
         data.update({key: value for key, value in obj.items() if key in non_prefixed_fields})
         return data
 
-    def serialize_obj(self, obj: BaseObject):
+    def serialize_obj(self, obj: BaseObject) -> Dict[str, Any]:
 
         pk_overrides = {}
         for key, value in obj:
@@ -110,7 +110,7 @@ class Ingester:
                 pk_overrides[key] = value.primary_key
 
         # export model with pydantic serializers
-        export = json.loads(obj.json())
+        export: Dict[str, Any] = json.loads(obj.json())
         export.update(pk_overrides)
 
         # prefix fields, but not object_type
@@ -126,7 +126,7 @@ class Ingester:
         export["xt/id"] = obj.primary_key
         return export
 
-    def save_obj(self, obj: BaseObject):
+    def save_obj(self, obj: BaseObject) -> None:
         xtdb_session = XTDBSession(self.xtdb_client)
         for o in obj.sub_objects:
             xtdb_session.add((OperationType.PUT, self.serialize_obj(o), datetime.now(timezone.utc)))
@@ -135,16 +135,16 @@ class Ingester:
     def resolve_graphql_union(self, data: Any, type_info: GraphQLResolveInfo, union: GraphQLUnionType) -> Any:
         return data["object_type"]
 
-    def resolve_graphql_type(self, parent_obj: Any, type_info: GraphQLResolveInfo, **kwargs) -> Any:
+    def resolve_graphql_type(self, parent_obj: Any, type_info: GraphQLResolveInfo, **kwargs: Any) -> Any:
         """Fetch instances of type from XTDB."""
-        print(self.xtdb_client)
-        print(type_info)
 
         # outgoing relation
         if parent_obj and type_info.field_name in parent_obj:
             query = """
                 {{:query {{:find [(pull ?entity [*])]
-                           :where [[?entity :xt/id \"{}\"]] }} }}""".format(parent_obj[type_info.field_name])
+                           :where [[?entity :xt/id \"{}\"]] }} }}""".format(
+                parent_obj[type_info.field_name]
+            )
             results = self.xtdb_client.query(query)
             return self.deserialize_obj(results[0][0])
 
@@ -156,7 +156,7 @@ class Ingester:
             return [self.deserialize_obj(row[0]) for row in results]
         return []
 
-    def set_resolvers(self):
+    def set_resolvers(self) -> None:
 
         # Set resolver for root OOI union type
         self.current_schema.hydrated_schema.schema.query_type.fields["OOI"].resolve = self.resolve_graphql_type
@@ -174,7 +174,7 @@ class Ingester:
                 if isinstance(real_type, GraphQLUnionType):
                     field.resolve = self.resolve_graphql_type
 
-    def update_schema(self, new_schema: SchemaLoader):
+    def update_schema(self, new_schema: SchemaLoader) -> None:
         self.current_schema = new_schema
         self.persist_schema()
         self.dataclass_generator = DataclassGenerator(self.current_schema.openkat_schema)
@@ -207,7 +207,7 @@ class Ingester:
                     "object_type": "Network",
                     "name": "internet",
                 },
-                "address": "1.1.1.1"
+                "address": "1.1.1.1",
             },
             "port": 80,
             "state": "open",

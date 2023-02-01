@@ -94,7 +94,9 @@ class KATSchema:
     def object_types(self) -> list[GraphQLObjectType]:
         """Return all object types."""
         return [
-            t for t in self.schema.type_map.values() if isinstance(t, GraphQLObjectType) and not t.name.startswith("__")
+            t
+            for t in self.schema.type_map.values()
+            if isinstance(t, GraphQLObjectType) and not t.name.startswith("__")
         ]
 
     @property

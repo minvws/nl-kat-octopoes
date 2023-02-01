@@ -2,7 +2,7 @@
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional, List
+from typing import Any, Dict, Optional, List, Union
 
 import uvicorn
 from fastapi import FastAPI, status
@@ -107,7 +107,7 @@ class Server:
         """List ingesters."""
         return [IngesterModel(id=ingester) for ingester in self.ingesters.keys()]
 
-    def get_graphql_schema(self, ingester_id: str) -> str:
+    def get_graphql_schema(self, ingester_id: str) -> Any:
         """Serve graphql schema."""
         if ingester_id not in self.ingesters:
             return status.HTTP_404_NOT_FOUND
