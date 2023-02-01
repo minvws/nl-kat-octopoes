@@ -1,25 +1,16 @@
 # Native Kat
-directive @constraint (
-    format: String = ""
-) on FIELD_DEFINITION
-
-directive @natural_key (
-    fields: [String]!
-) on FIELD_DEFINITION
-
-directive @format (
-    format: String = ""
-) on FIELD_DEFINITION
-
-directive @reverse_name (
-    name: String = ""
-) on FIELD_DEFINITION
-
 interface BaseObject {
-   primary_key: ID!
+  object_type: String!
+  primary_key: ID!
 }
 
 interface OOI implements BaseObject {
-   primary_key: ID!
-   human_readable: String!
+  object_type: String!
+  primary_key: ID!
+  human_readable: String!
 }
+
+scalar IPv4
+scalar IPv6
+scalar HostnameX
+scalar InternationalDomainName

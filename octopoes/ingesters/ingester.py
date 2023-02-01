@@ -9,7 +9,8 @@ from requests import HTTPError
 
 from octopoes.connectors.services.xtdb import XTDBHTTPClient, XTDBSession, OperationType
 from octopoes.context.context import AppContext
-from octopoes.ddl.ddl import SchemaManager
+from octopoes.ddl.dataclasses import DataclassGenerator
+from octopoes.ddl.ddl import SchemaLoader
 from octopoes.models.organisation import Organisation
 from octopoes.utils.thread import ThreadRunner
 
@@ -37,16 +38,18 @@ class Ingester:
 
         # Try to load the current_schema from XTDB
         self.current_schema = self.load_schema()
+        self.dataclass_generator = DataclassGenerator(self.current_schema.openkat_schema)
 
-    def load_schema(self) -> SchemaManager:
+    def load_schema(self) -> SchemaLoader:
         """Load the current_schema from XTDB."""
         try:
-            current_schema_def = self.xtdb_client.get_entity("schema")
-            current_schema = SchemaManager(current_schema_def["schema"])
+            # current_schema_def = self.xtdb_client.get_entity("schema")
+            # current_schema = SchemaLoader(current_schema_def["schema"])
+            current_schema = SchemaLoader()
         except HTTPError as exc:
             if exc.response.status_code == 404:
                 logger.info("No current_schema found in XTDB, using OpenKAT schema from disk")
-                current_schema = SchemaManager.load_from_disk()
+                current_schema = SchemaLoader()
             else:
                 raise exc
         return current_schema
@@ -56,7 +59,7 @@ class Ingester:
         xtdb_session = XTDBSession(self.xtdb_client)
         document = {
             "xt/id": "schema",
-            "schema": print_schema(self.current_schema.schema),
+            "schema": self.current_schema.openkat_schema_definition,
         }
         xtdb_session.add((OperationType.PUT, document, None))
         xtdb_session.commit()
@@ -101,14 +104,12 @@ class Ingester:
         logger.info("Ingesting... %s", self.ingester_id)
 
         # load new current_schema (from disk for now)
-        new_schema = SchemaManager.load_from_disk()
+        new_schema = SchemaLoader()
 
         # compare with previous current_schema and validate
         self.current_schema = new_schema
 
         self.persist_schema()
-
-        # update cached instance
 
         # attach resolvers to current_schema
         self.current_schema.full_schema.query_type.fields["OOI"].resolve = self.resolve_graphql_type
@@ -116,22 +117,24 @@ class Ingester:
         # ingest normalizer configs
         # ingest bit configs
 
+        self.dataclass_generator = DataclassGenerator(self.current_schema.openkat_schema)
+
         # ingest normalizer outputs / origins
-        origin = {
-            "object_type": "Origin",
-            "origin_type": "declaration",
-            "results": [
-                {
-                    "object_type": "Hostname_v1",
-                    "network": {
-                        "object_type": "Network_v1",
-                        "name": "internet",
-                    },
-                    "name": "openkat.nl",
+        hostname = {
+            "object_type": "IPPort",
+            "address": {
+                "object_type": "IPv4Address",
+                "network": {
+                    "object_type": "Network",
+                    "name": "internet",
                 },
-            ],
+                "address": "1.1.1.1"
+            },
+            "port": 80,
+            "state": "open",
+            "protocol": "tcp",
         }
-        print(origin)
+        self.dataclass_generator.parse_obj(hostname)
 
         # wait for processing to complete
 
