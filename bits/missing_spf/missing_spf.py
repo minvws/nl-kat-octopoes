@@ -16,8 +16,11 @@ def run(
 
     # Only needs SPF when it is the fqdn and not a subdomain
     if (
+        # only report on findings on the fqdn because of double findings
         input_ooi.name == input_ooi.fqdn.tokenized.name
+        # don't report on findings on subdomains because it's not needed on subdomains
         and not tldextract.extract(input_ooi.name).subdomain
+        # don't report on findings on tlds
         and tldextract.extract(input_ooi.name).domain
     ):
         if not additional_oois:
