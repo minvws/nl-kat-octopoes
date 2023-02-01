@@ -43,6 +43,10 @@ class BaseObject(BaseModel, BaseObjectMetaClass):
         natural_key = "".join(natural_key_values)
         self.primary_key = mmh3.hash_bytes(natural_key.encode("utf-8")).hex()
 
+    @property
+    def sub_objects(self) -> List[BaseObject]:
+        return [self] + [getattr(self, key) for key in self.__fields__ if isinstance(getattr(self, key), BaseObject)]
+
 
 class OOIMetaClass:
     human_readable_format: str

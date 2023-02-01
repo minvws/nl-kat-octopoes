@@ -1,7 +1,8 @@
 """Main processing logic for Octopoes."""
-
+import json
 import logging
 import threading
+from datetime import timezone, datetime
 from typing import Callable, Optional, Any, NoReturn
 
 from graphql import print_schema, GraphQLResolveInfo
@@ -9,7 +10,7 @@ from requests import HTTPError
 
 from octopoes.connectors.services.xtdb import XTDBHTTPClient, XTDBSession, OperationType
 from octopoes.context.context import AppContext
-from octopoes.ddl.dataclasses import DataclassGenerator
+from octopoes.ddl.dataclasses import DataclassGenerator, BaseObject
 from octopoes.ddl.ddl import SchemaLoader
 from octopoes.models.organisation import Organisation
 from octopoes.utils.thread import ThreadRunner
@@ -99,6 +100,24 @@ class Ingester:
         print(type_info)
         return []
 
+    def serialize_obj(self, obj: BaseObject):
+        # export model with pydantic serializers
+        export = json.loads(obj.json())
+
+        # prefix fields, but not object_type
+        export.pop("object_type")
+        export = {f"{obj.object_type}/{key}": value for key, value in export.items() if value is not None}
+
+        export["object_type"] = obj.object_type
+        export["xt/id"] = obj.primary_key
+        return export
+
+    def save_obj(self, obj: BaseObject):
+        xtdb_session = XTDBSession(self.xtdb_client)
+        for o in obj.sub_objects:
+            xtdb_session.add((OperationType.PUT, self.serialize_obj(o), datetime.now(timezone.utc)))
+        xtdb_session.commit()
+
     def ingest(self) -> None:
         """Periodically ingest data."""
         logger.info("Ingesting... %s", self.ingester_id)
@@ -120,7 +139,7 @@ class Ingester:
         self.dataclass_generator = DataclassGenerator(self.current_schema.openkat_schema)
 
         # ingest normalizer outputs / origins
-        hostname = {
+        port = {
             "object_type": "IPPort",
             "address": {
                 "object_type": "IPv4Address",
@@ -134,9 +153,8 @@ class Ingester:
             "state": "open",
             "protocol": "tcp",
         }
-        hostname_ = self.dataclass_generator.parse_obj(hostname)
-
-        print(hostname_)
+        port_ = self.dataclass_generator.parse_obj(port)
+        self.save_obj(port_)
 
         # wait for processing to complete
 
