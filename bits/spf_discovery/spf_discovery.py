@@ -18,7 +18,7 @@ def run(
     if input_ooi.value.startswith("v=spf1"):
         spf_value = input_ooi.value.replace("%(d)", input_ooi.hostname.tokenized.name)
         # long spf records are split into multiple txt records, that can be concatenated
-        spf_value = spf_value.replace('" "', " ")
+        spf_value = spf_value.replace('" "', "")
         parsed = parse(spf_value)
         # check if spf record passes the internet.nl parser
         if parsed is not None:
