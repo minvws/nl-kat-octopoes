@@ -129,11 +129,13 @@ class XTDBHTTPClient:
         self.await_transaction(res.json()["txId"])
 
     def create_node(self, name: str) -> None:
+        """Create node in XTDB-multinode."""
         res = self._session.post("/create-node", json={"node": name})
 
         self._verify_response(res)
 
     def delete_node(self, name: str) -> None:
+        """Delete node in XTDB-multinode."""
         res = self._session.post(
             "/delete-node",
             json={"node": name},

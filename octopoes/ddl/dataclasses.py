@@ -4,7 +4,7 @@ from __future__ import annotations
 from enum import Enum
 from ipaddress import IPv4Address, IPv6Address
 from logging import getLogger
-from typing import Dict, Union, Literal, Any, Optional, List, Iterator, Type, cast
+from typing import Dict, Union, Literal, Any, Optional, List, Iterator, Type
 
 import mmh3
 from graphql import (
@@ -21,18 +21,36 @@ from octopoes.utils.dict_utils import flatten
 logger = getLogger(__name__)
 
 
-class BaseObjectMetaClass:
-    natural_key_attrs: List[str]
-    human_readable_format: str
+class BaseObjectMeta:
+    """Metaclass for BaseObject.
+
+    Provide the class attributes in a separate class to avoid Pydantic Metaclass
+    """
+
+    _natural_key_attrs: List[str]
+    _human_readable_format: str
+
+    @property
+    def natural_key_attrs(self) -> List[str]:
+        """Make natural_key_attrs public."""
+        return self._natural_key_attrs
+
+    @property
+    def human_readable_format(self) -> str:
+        """Make human_readable_format public."""
+        return self._human_readable_format
 
 
-class BaseObject(BaseModel, BaseObjectMetaClass):
+class BaseObject(BaseModel, BaseObjectMeta):
+    """Base class for all database objects."""
+
     object_type: str
     primary_key: Optional[str]
     human_readable: Optional[str]
 
     @staticmethod
     def str_value(value: Any) -> str:
+        """Convert a value to a string."""
         if isinstance(value, Enum):
             value = str(value.value)
         if isinstance(value, BaseObject):
@@ -40,32 +58,35 @@ class BaseObject(BaseModel, BaseObjectMetaClass):
         return str(value)
 
     def __init__(self, **kwargs: Any) -> None:
+        """Initialize instance."""
         super().__init__(**kwargs)
 
-        natural_key_keys = ["object_type"] + sorted(self.natural_key_attrs)
+        natural_key_keys = ["object_type"] + sorted(self._natural_key_attrs)
         natural_key_values = [self.str_value(getattr(self, key)) for key in natural_key_keys]
         natural_key = "".join(natural_key_values)
         self.primary_key = mmh3.hash_bytes(natural_key.encode("utf-8")).hex()
 
-        self.human_readable = self.human_readable_format.format(**flatten(self.dict()))
+        self.human_readable = self._human_readable_format.format(**flatten(self.dict()))
 
-    @property
-    def sub_objects(self) -> Iterator[BaseObject]:
-        for key, value in self:
+    def dependencies(self, include_self: bool = True) -> Iterator[BaseObject]:
+        """Return a list of dependencies for this object."""
+        for _, value in self:
             if isinstance(value, BaseObject):
-                yield from value.sub_objects
-        yield self
+                yield from value.dependencies()
+        if include_self:
+            yield self
 
     class Config:
+        """Pydantic config."""
+
         use_enum_values = True
 
 
 class OOI(BaseObject):
-    ...
+    """Object of Interest dataclass."""
 
 
 class DataclassGenerator:
-
     """Generates (Pydantic) dataclasses from a GraphQL schema."""
 
     def __init__(self, schema: KATSchema):
@@ -74,7 +95,15 @@ class DataclassGenerator:
         self.dataclasses: Dict[str, Type[BaseObject]] = {}
         self.generate_pydantic_models()
 
-    def graphql_field_to_python_type(self, field: GraphQLField) -> Any:
+    @staticmethod
+    def is_field_foreign_key(field: GraphQLField) -> bool:
+        """Check if a field is a foreign key."""
+        real_type = field.type.of_type if getattr(field.type, "of_type", None) else field.type
+        return isinstance(real_type, (GraphQLObjectType, GraphQLUnionType))
+
+    def graphql_field_to_python_type(  # pylint: disable=too-many-return-statements, inconsistent-return-statements
+        self, field: GraphQLField
+    ) -> Any:
         """Convert a GraphQL field to a Python type."""
         real_type = field.type.of_type if getattr(field.type, "of_type", None) else field.type
         if real_type.name == "String":
@@ -113,13 +142,17 @@ class DataclassGenerator:
         if self.schema.ooi_type in object_type.interfaces:
             base_model = OOI
 
-        dataclass = create_model(object_type.name, __base__=base_model, **fields)  # type: ignore
+        dataclass: Type[BaseObject] = create_model(object_type.name, __base__=base_model, **fields)  # type: ignore
 
-        dataclass.natural_key_attrs = object_type.fields["primary_key"].args["natural_key"].default_value
-        dataclass.human_readable_format = object_type.fields["human_readable"].args["format"].default_value
+        dataclass._natural_key_attrs = (  # pylint: disable=protected-access
+            object_type.fields["primary_key"].args["natural_key"].default_value
+        )
+        dataclass._human_readable_format = (  # pylint: disable=protected-access
+            object_type.fields["human_readable"].args["format"].default_value
+        )
 
         self.dataclasses[object_type.name] = dataclass
-        return cast(Type[BaseObject], dataclass)
+        return dataclass
 
     def generate_pydantic_models(self) -> None:
         """Generate data classes for all object types."""

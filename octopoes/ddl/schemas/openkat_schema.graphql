@@ -145,4 +145,3 @@ type DNSSOARecord implements BaseObject & OOI & DNSRecordBase {
   primary_ns(reverse_name: String! = "primary_ns_of"): Hostname
   admin_email(reverse_name: String! = "dns_soa_admin_email_of"): Hostname
 }
-

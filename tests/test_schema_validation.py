@@ -2,47 +2,44 @@ from pathlib import Path
 
 import pytest
 
-from octopoes.ddl.ddl import SchemaManager, SchemaValidationException
-
-schema_manager = SchemaManager()
+from octopoes.ddl.ddl import SchemaLoader, SchemaValidationException
 
 
 def test_schema():
-    new_schema = schema_manager.load_schema(Path(__file__).parent / "fixtures" / "schema_simple.graphql")
-    schema_manager.validate(new_schema)
+    SchemaLoader((Path(__file__).parent / "fixtures" / "schema_simple.graphql").read_text())
 
 
 def test_schema__custom_scalar__schemavalidationerror():
-    new_schema = schema_manager.load_schema(Path(__file__).parent / "fixtures" / "schema_custom_scalar.graphql")
-    with pytest.raises(SchemaValidationException) as _:
-        schema_manager.validate(new_schema)
-
-
-def test_schema__reserved_keywords__schemavalidationerror():
-    new_schema = schema_manager.load_schema(Path(__file__).parent / "fixtures" / "schema_reserved_keywords.graphql")
-    with pytest.raises(SchemaValidationException) as _:
-        schema_manager.validate(new_schema)
-
-
-def test_schema__no_interfaces_1__schemavalidationerror():
-    new_schema = schema_manager.load_schema(Path(__file__).parent / "fixtures" / "schema_no_interfaces_1.graphql")
-    with pytest.raises(SchemaValidationException) as _:
-        schema_manager.validate(new_schema)
-
-
-def test_schema__no_interfaces_2__schemavalidationerror():
-    new_schema = schema_manager.load_schema(Path(__file__).parent / "fixtures" / "schema_no_interfaces_2.graphql")
-    with pytest.raises(SchemaValidationException) as _:
-        schema_manager.validate(new_schema)
-
-
-def test_schema__no_interfaces_3__schemavalidationerror():
-    new_schema = schema_manager.load_schema(Path(__file__).parent / "fixtures" / "schema_no_interfaces_3.graphql")
-    with pytest.raises(SchemaValidationException) as _:
-        schema_manager.validate(new_schema)
+    with pytest.raises(SchemaValidationException) as exc:
+        SchemaLoader((Path(__file__).parent / "fixtures" / "schema_custom_scalar.graphql").read_text())
+        assert "Custom scalar are not allowed" in str(exc.value)
 
 
 def test_schema__directive__schemavalidationerror():
-    new_schema = schema_manager.load_schema(Path(__file__).parent / "fixtures" / "schema_directive.graphql")
-    with pytest.raises(SchemaValidationException) as _:
-        schema_manager.validate(new_schema)
+    with pytest.raises(SchemaValidationException) as exc:
+        SchemaLoader((Path(__file__).parent / "fixtures" / "schema_directive.graphql").read_text())
+        assert "Custom directives are not allowed" in str(exc.value)
+
+
+def test_schema__reserved_type_name__schemavalidationerror():
+    with pytest.raises(SchemaValidationException) as exc:
+        SchemaLoader((Path(__file__).parent / "fixtures" / "schema_reserved_type_name.graphql").read_text())
+        assert "reserved type name" in str(exc.value)
+
+
+def test_schema__no_interfaces_1__schemavalidationerror():
+    with pytest.raises(SchemaValidationException) as exc:
+        SchemaLoader((Path(__file__).parent / "fixtures" / "schema_no_interfaces_1.graphql").read_text())
+        assert "Object types must implement BaseObject and OOI" in str(exc.value)
+
+
+def test_schema__no_interfaces_2__schemavalidationerror():
+    with pytest.raises(SchemaValidationException) as exc:
+        SchemaLoader((Path(__file__).parent / "fixtures" / "schema_no_interfaces_2.graphql").read_text())
+        assert "Object types must implement BaseObject and OOI" in str(exc.value)
+
+
+def test_schema__no_interfaces_3__schemavalidationerror():
+    with pytest.raises(SchemaValidationException) as exc:
+        SchemaLoader((Path(__file__).parent / "fixtures" / "schema_no_interfaces_3.graphql").read_text())
+        assert "Object types must implement BaseObject and OOI" in str(exc.value)

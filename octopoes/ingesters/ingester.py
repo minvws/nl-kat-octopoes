@@ -1,24 +1,23 @@
 """Main processing logic for Octopoes."""
-import json
 import logging
 import threading
-from datetime import timezone, datetime
-from typing import Callable, Optional, Any, NoReturn, Dict
+from typing import Callable, Optional, Any, NoReturn
 
-from graphql import print_schema, GraphQLResolveInfo, GraphQLUnionType, GraphQLObjectType
+from graphql import GraphQLResolveInfo, GraphQLUnionType, GraphQLObjectType
 from requests import HTTPError
 
 from octopoes.connectors.services.xtdb import XTDBHTTPClient, XTDBSession, OperationType
 from octopoes.context.context import AppContext
-from octopoes.ddl.dataclasses import DataclassGenerator, BaseObject
+from octopoes.ddl.dataclasses import DataclassGenerator
 from octopoes.ddl.ddl import SchemaLoader
 from octopoes.models.organisation import Organisation
+from octopoes.repositories.object_repository import ObjectRepository
 from octopoes.utils.thread import ThreadRunner
 
 logger = logging.getLogger(__name__)
 
 
-class Ingester:
+class Ingester:  # pylint: disable=too-many-instance-attributes
     """Main data ingestion unit for an Organization."""
 
     def __init__(
@@ -40,14 +39,22 @@ class Ingester:
         # Try to load the current_schema from XTDB
         self.current_schema = self.load_schema()
         self.dataclass_generator = DataclassGenerator(self.current_schema.openkat_schema)
-        self.set_resolvers()
+        self.setup_resolvers()
+        self.object_repository = ObjectRepository(self.current_schema, self.dataclass_generator, self.xtdb_client)
+
+    def update_schema(self, new_schema: SchemaLoader) -> None:
+        """Update the current_schema and update XTDB as well as in-memory structures."""
+        self.current_schema = new_schema
+        self.persist_schema()
+        self.dataclass_generator = DataclassGenerator(self.current_schema.openkat_schema)
+        self.setup_resolvers()
+        self.object_repository = ObjectRepository(self.current_schema, self.dataclass_generator, self.xtdb_client)
 
     def load_schema(self) -> SchemaLoader:
         """Load the current_schema from XTDB."""
         try:
-            # current_schema_def = self.xtdb_client.get_entity("schema")
-            # current_schema = SchemaLoader(current_schema_def["schema"])
-            current_schema = SchemaLoader()
+            current_schema_def = self.xtdb_client.get_entity("schema")
+            current_schema = SchemaLoader(current_schema_def["schema"])
         except HTTPError as exc:
             if exc.response.status_code == 404:
                 logger.info("No current_schema found in XTDB, using OpenKAT schema from disk")
@@ -95,69 +102,33 @@ class Ingester:
             interval=30,
         )
 
-    def deserialize_obj(self, obj: Dict[str, Any]) -> Dict[str, Any]:
-        # remove prefix from fields, but not object_type
-        non_prefixed_fields = ["xt/id", "object_type", "primary_key", "human_readable"]
-        data = {key.split("/")[1]: value for key, value in obj.items() if key not in non_prefixed_fields}
-        data.update({key: value for key, value in obj.items() if key in non_prefixed_fields})
-        return data
-
-    def serialize_obj(self, obj: BaseObject) -> Dict[str, Any]:
-
-        pk_overrides = {}
-        for key, value in obj:
-            if isinstance(value, BaseObject):
-                pk_overrides[key] = value.primary_key
-
-        # export model with pydantic serializers
-        export: Dict[str, Any] = json.loads(obj.json())
-        export.update(pk_overrides)
-
-        # prefix fields, but not object_type
-        non_prefixed_fields = ["object_type", "primary_key", "human_readable"]
-        for key in non_prefixed_fields:
-            export.pop(key)
-
-        export = {f"{obj.object_type}/{key}": value for key, value in export.items()}
-
-        for key in non_prefixed_fields:
-            export[key] = getattr(obj, key)
-
-        export["xt/id"] = obj.primary_key
-        return export
-
-    def save_obj(self, obj: BaseObject) -> None:
-        xtdb_session = XTDBSession(self.xtdb_client)
-        for o in obj.sub_objects:
-            xtdb_session.add((OperationType.PUT, self.serialize_obj(o), datetime.now(timezone.utc)))
-        xtdb_session.commit()
-
-    def resolve_graphql_union(self, data: Any, type_info: GraphQLResolveInfo, union: GraphQLUnionType) -> Any:
+    def resolve_graphql_union(self, data: Any, _: GraphQLResolveInfo, __: GraphQLUnionType) -> Any:
+        """Resolve a GraphQL union type to an object type."""
         return data["object_type"]
 
-    def resolve_graphql_type(self, parent_obj: Any, type_info: GraphQLResolveInfo, **kwargs: Any) -> Any:
+    def resolve_graphql_type(
+        self, parent_obj: Any, type_info: GraphQLResolveInfo, **kwargs: Any  # pylint: disable=unused-argument
+    ) -> Any:
         """Fetch instances of type from XTDB."""
-
         # outgoing relation
         if parent_obj and type_info.field_name in parent_obj:
-            query = """
-                {{:query {{:find [(pull ?entity [*])]
-                           :where [[?entity :xt/id \"{}\"]] }} }}""".format(
-                parent_obj[type_info.field_name]
+            query = (
+                f"{{:query {{:find [(pull ?entity [*])] "
+                f':where [[?entity :xt/id "{parent_obj[type_info.field_name]}"]] }} }}'
             )
             results = self.xtdb_client.query(query)
-            return self.deserialize_obj(results[0][0])
+            return self.object_repository.rm_prefixes(results[0][0])
 
         if type_info.return_type.of_type == self.current_schema.hydrated_schema.ooi_union_type:
             query = """
                 {:query {:find [(pull ?entity [*])]
                          :where [[?entity :object_type]] } }"""
             results = self.xtdb_client.query(query)
-            return [self.deserialize_obj(row[0]) for row in results]
+            return [self.object_repository.rm_prefixes(row[0]) for row in results]
         return []
 
-    def set_resolvers(self) -> None:
-
+    def setup_resolvers(self) -> None:
+        """Set resolvers for GraphQL schema."""
         # Set resolver for root OOI union type
         self.current_schema.hydrated_schema.schema.query_type.fields["OOI"].resolve = self.resolve_graphql_type
 
@@ -173,12 +144,6 @@ class Ingester:
                     field.resolve = self.resolve_graphql_type
                 if isinstance(real_type, GraphQLUnionType):
                     field.resolve = self.resolve_graphql_type
-
-    def update_schema(self, new_schema: SchemaLoader) -> None:
-        self.current_schema = new_schema
-        self.persist_schema()
-        self.dataclass_generator = DataclassGenerator(self.current_schema.openkat_schema)
-        self.set_resolvers()
 
     def ingest(self) -> None:
         """Periodically ingest data."""
@@ -214,7 +179,7 @@ class Ingester:
             "protocol": "tcp",
         }
         port_ = self.dataclass_generator.parse_obj(port)
-        self.save_obj(port_)
+        self.object_repository.save(port_)
 
         # wait for processing to complete
 

@@ -21,6 +21,11 @@ from graphql import (
     parse,
     GraphQLArgument,
     GraphQLNonNull,
+    DocumentNode,
+    DirectiveDefinitionNode,
+    ObjectTypeDefinitionNode,
+    TypeDefinitionNode,
+    ScalarTypeDefinitionNode,
 )
 
 logger = getLogger(__name__)
@@ -63,9 +68,11 @@ KAT_DIRECTIVES = {
 }
 
 
-RESERVED_KEYWORDS = {
+RESERVED_TYPE_NAMES = {
     "Query",
     "Mutation",
+    "BaseObject",
+    "OOI",
 }
 
 
@@ -108,6 +115,8 @@ class KATSchema:
 
 
 class HydratedSchema(KATSchema):
+    """Wrapper for a KAT GraphQLSchema with reverse fields linked, and Query type added."""
+
     @property
     def ooi_union_type(self) -> GraphQLUnionType:
         """Return the OOI union type."""
@@ -122,7 +131,8 @@ class SchemaLoader:
     - base_schema: The base schema, which the OpenKAT schema extends
     - openkat_schema: The OpenKAT schema, which is validated
     - full_schema: The OpenKAT schema, extended with KAT specific types
-    - hydrated_schema: The full schema, where reverse fields are linked. Extended with Query type. Meant to expose to API
+    - hydrated_schema: The full schema, where reverse fields are linked. Extended with Query type.
+      Meant to expose to API
     """
 
     def __init__(self, openkat_schema_definition: Optional[str] = None):
@@ -138,33 +148,46 @@ class SchemaLoader:
         return KATSchema(build_schema(BASE_SCHEMA_FILE.read_text()))
 
     @cached_property
+    def openkat_schema_document(self) -> DocumentNode:
+        """Return and cache the parsed OpenKAT schema."""
+        return parse(self.openkat_schema_definition)
+
+    @cached_property
     def openkat_schema(self) -> KATSchema:
         """Load the schema from disk."""
-        return KATSchema(extend_schema(self.base_schema.schema, parse(self.openkat_schema_definition)))
+        return KATSchema(extend_schema(self.base_schema.schema, self.openkat_schema_document))
 
     def validate_openkat_schema(self) -> None:
-        """Validate the schema."""
-        # Validate directives, no custom directives are allowed
-        directive_names = {d.name for d in self.openkat_schema.schema.directives}
-        if directive_names - BUILTIN_DIRECTIVES - KAT_DIRECTIVES:
-            raise SchemaValidationException("Custom directives are not allowed")
+        """Look into the AST of the schema definition file to apply restrictions.
 
-        # Validate object types
-        for type_ in self.openkat_schema.schema.type_map.values():
-            if type_.name in BUILTIN_TYPES:
-                continue
+        References:
+            - https://graphql-core-3.readthedocs.io/en/latest/modules/language.html
+        """
+        # Check all definitions to apply validations
+        for definition in self.openkat_schema_document.definitions:
 
-            if type_ in (self.openkat_schema.ooi_type, self.openkat_schema.base_object_type):
-                continue
+            if isinstance(definition, DirectiveDefinitionNode):
+                raise SchemaValidationException(
+                    f"Custom directive definitions are not allowed [directive={definition.name.value}]"
+                )
 
-            if type_.name in RESERVED_KEYWORDS:
-                raise SchemaValidationException(f"{type_.name} is a reserved keyword")
+            if isinstance(definition, ScalarTypeDefinitionNode):
+                raise SchemaValidationException(
+                    f"Custom scalar definitions are not allowed [type={definition.name.value}]"
+                )
 
-            if isinstance(type_, GraphQLObjectType):
-                if self.openkat_schema.base_object_type not in type_.interfaces:
-                    raise SchemaValidationException(f"Object type must implement base types [type={type_.name}]")
-                if self.openkat_schema.ooi_type not in type_.interfaces:
-                    raise SchemaValidationException(f"Object type must implement base types [type={type_.name}]")
+            if isinstance(definition, TypeDefinitionNode):
+                if definition.name.value in RESERVED_TYPE_NAMES:
+                    raise SchemaValidationException(
+                        f"Use of reserved type name is now allowed [type={definition.name.value}]"
+                    )
+
+            if isinstance(definition, ObjectTypeDefinitionNode):
+                interface_names = [interface.name.value for interface in definition.interfaces]
+                if "BaseObject" not in interface_names or "OOI" not in interface_names:
+                    raise SchemaValidationException(
+                        f"Object types must implement BaseObject and OOI [type={definition.name.value}]"
+                    )
 
     @cached_property
     def full_schema(self) -> KATSchema:
@@ -208,7 +231,7 @@ class SchemaLoader:
 
     @cached_property
     def hydrated_schema(self) -> HydratedSchema:
-
+        """Build the hydrated schema."""
         # Construct Query Type
         ooi_union = self.full_schema.schema.type_map["UOOI"]
         query = GraphQLObjectType("Query", fields={"OOI": GraphQLField(GraphQLList(ooi_union))})

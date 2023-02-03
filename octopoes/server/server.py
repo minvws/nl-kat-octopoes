@@ -2,7 +2,7 @@
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional, List, Union
+from typing import Any, Dict, Optional, List
 
 import uvicorn
 from fastapi import FastAPI, status
@@ -12,8 +12,8 @@ from pydantic import BaseModel
 
 from octopoes.context.context import AppContext
 from octopoes.ingesters.ingester import Ingester
-from octopoes.models.ingester import Ingester as IngesterModel
 from octopoes.models.health import ServiceHealth
+from octopoes.models.ingester import Ingester as IngesterModel
 from octopoes.version import version
 
 
@@ -86,6 +86,14 @@ class Server:
             status_code=200,
         )
 
+        self.api.add_api_route(
+            path="/{ingester_id}/objects/{object_id}",
+            endpoint=self.get_object,
+            methods=["GET"],
+            response_class=JSONResponse,
+            status_code=200,
+        )
+
     def root(self) -> Any:
         """Root endpoint."""
         return None
@@ -113,6 +121,13 @@ class Server:
             return status.HTTP_404_NOT_FOUND
 
         return print_schema(self.ingesters[ingester_id].current_schema.hydrated_schema.schema)
+
+    def get_object(self, ingester_id: str, object_id: str) -> Any:
+        """Get an object."""
+        if ingester_id not in self.ingesters:
+            return status.HTTP_404_NOT_FOUND
+
+        return self.ingesters[ingester_id].object_repository.get(object_id)
 
     def get_graphiql(self, ingester_id: str) -> Any:
         """Serve graphiql frontend."""
