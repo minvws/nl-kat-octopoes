@@ -38,7 +38,7 @@ class Ingester:  # pylint: disable=too-many-instance-attributes
 
         # Try to load the current_schema from XTDB
         self.current_schema = self.load_schema()
-        self.dataclass_generator = DataclassGenerator(self.current_schema.openkat_schema)
+        self.dataclass_generator = DataclassGenerator(self.current_schema.ooi_schema)
         self.setup_resolvers()
         self.object_repository = ObjectRepository(self.current_schema, self.dataclass_generator, self.xtdb_client)
 
@@ -46,7 +46,7 @@ class Ingester:  # pylint: disable=too-many-instance-attributes
         """Update the current_schema and update XTDB as well as in-memory structures."""
         self.current_schema = new_schema
         self.persist_schema()
-        self.dataclass_generator = DataclassGenerator(self.current_schema.openkat_schema)
+        self.dataclass_generator = DataclassGenerator(self.current_schema.ooi_schema)
         self.setup_resolvers()
         self.object_repository = ObjectRepository(self.current_schema, self.dataclass_generator, self.xtdb_client)
 
@@ -68,7 +68,7 @@ class Ingester:  # pylint: disable=too-many-instance-attributes
         xtdb_session = XTDBSession(self.xtdb_client)
         document = {
             "xt/id": "schema",
-            "schema": self.current_schema.openkat_schema_definition,
+            "schema": self.current_schema.ooi_schema_definition,
         }
         xtdb_session.add((OperationType.PUT, document, None))
         xtdb_session.commit()
@@ -156,7 +156,7 @@ class Ingester:  # pylint: disable=too-many-instance-attributes
         new_schema = SchemaLoader()
 
         # compare with previous current_schema and validate
-        if new_schema.openkat_schema_definition != self.current_schema.openkat_schema_definition:
+        if new_schema.ooi_schema_definition != self.current_schema.ooi_schema_definition:
             logger.info("New schema detected, updating")
             self.update_schema(new_schema)
 

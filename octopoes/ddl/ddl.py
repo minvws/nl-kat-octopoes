@@ -77,10 +77,10 @@ RESERVED_TYPE_NAMES = {
 
 
 BASE_SCHEMA_FILE = Path(__file__).parent / "schemas" / "base_schema.graphql"
-OPENKAT_SCHEMA_FILE = Path(__file__).parent / "schemas" / "openkat_schema.graphql"
+OOI_SCHEMA_FILE = Path(__file__).parent / "schemas" / "ooi_schema.graphql"
 
 
-class KATSchema:
+class OOISchema:
     """Wrapper for a KAT GraphQLSchema."""
 
     def __init__(self, schema: GraphQLSchema) -> None:
@@ -114,7 +114,7 @@ class KATSchema:
         ]
 
 
-class HydratedSchema(KATSchema):
+class HydratedSchema(OOISchema):
     """Wrapper for a KAT GraphQLSchema with reverse fields linked, and Query type added."""
 
     @property
@@ -124,47 +124,47 @@ class HydratedSchema(KATSchema):
 
 
 class SchemaLoader:
-    """Loads an OpenKAT schema definition to validate and calculate derived schemas.
+    """Loads an OOI schema definition to validate and calculate derived schemas.
 
-    Initialized with an OpenKAT schema definition.
+    Initialized with an OOI schema definition.
     Derived schemas:
-    - base_schema: The base schema, which the OpenKAT schema extends
-    - openkat_schema: The OpenKAT schema, which is validated
-    - full_schema: The OpenKAT schema, extended with KAT specific types
+    - base_schema: The base schema, which the OOI schema extends
+    - ooi_schema: The OOI schema, which is validated
+    - full_schema: The OOI schema, extended with KAT specific types
     - hydrated_schema: The full schema, where reverse fields are linked. Extended with Query type.
       Meant to expose to API
     """
 
-    def __init__(self, openkat_schema_definition: Optional[str] = None):
+    def __init__(self, ooi_schema_definition: Optional[str] = None):
         """Initialize instance."""
-        self.openkat_schema_definition = (
-            openkat_schema_definition if openkat_schema_definition is not None else OPENKAT_SCHEMA_FILE.read_text()
+        self.ooi_schema_definition = (
+            ooi_schema_definition if ooi_schema_definition is not None else OOI_SCHEMA_FILE.read_text()
         )
-        self.validate_openkat_schema()
+        self.validate_ooi_schema()
 
     @cached_property
-    def base_schema(self) -> KATSchema:
+    def base_schema(self) -> OOISchema:
         """Return and cache the base schema."""
-        return KATSchema(build_schema(BASE_SCHEMA_FILE.read_text()))
+        return OOISchema(build_schema(BASE_SCHEMA_FILE.read_text()))
 
     @cached_property
-    def openkat_schema_document(self) -> DocumentNode:
-        """Return and cache the parsed OpenKAT schema."""
-        return parse(self.openkat_schema_definition)
+    def ooi_schema_document(self) -> DocumentNode:
+        """Return and cache the parsed OOI schema."""
+        return parse(self.ooi_schema_definition)
 
     @cached_property
-    def openkat_schema(self) -> KATSchema:
+    def ooi_schema(self) -> OOISchema:
         """Load the schema from disk."""
-        return KATSchema(extend_schema(self.base_schema.schema, self.openkat_schema_document))
+        return OOISchema(extend_schema(self.base_schema.schema, self.ooi_schema_document))
 
-    def validate_openkat_schema(self) -> None:
+    def validate_ooi_schema(self) -> None:
         """Look into the AST of the schema definition file to apply restrictions.
 
         References:
             - https://graphql-core-3.readthedocs.io/en/latest/modules/language.html
         """
         # Check all definitions to apply validations
-        for definition in self.openkat_schema_document.definitions:
+        for definition in self.ooi_schema_document.definitions:
 
             if isinstance(definition, DirectiveDefinitionNode):
                 raise SchemaValidationException(
@@ -190,14 +190,14 @@ class SchemaLoader:
                     )
 
     @cached_property
-    def full_schema(self) -> KATSchema:
+    def full_schema(self) -> OOISchema:
         """Build the full schema.
 
         Combines all concrete types into a single union type.
         Defines the root query type, based on above union type.
         """
         # OOI Union = all object types that implement OOI
-        ooi_union = GraphQLUnionType("UOOI", types=self.openkat_schema.object_types)
+        ooi_union = GraphQLUnionType("UOOI", types=self.ooi_schema.object_types)
 
         # Construct Scan Profile Type
         scan_level = GraphQLEnumType("ScanLevel", values={"L0": 0, "L1": 1, "L2": 2, "L3": 3, "L4": 4})
@@ -221,13 +221,13 @@ class SchemaLoader:
                 "level": GraphQLField(scan_level),
                 "ooi": GraphQLField(ooi_union),
             },
-            interfaces=[self.openkat_schema.base_object_type],
+            interfaces=[self.ooi_schema.base_object_type],
         )
 
-        full_schema_kwargs = self.openkat_schema.schema.to_kwargs()
+        full_schema_kwargs = self.ooi_schema.schema.to_kwargs()
         full_schema_kwargs["types"] = full_schema_kwargs["types"] + (ooi_union, scan_profile)
 
-        return KATSchema(GraphQLSchema(**full_schema_kwargs))
+        return OOISchema(GraphQLSchema(**full_schema_kwargs))
 
     @cached_property
     def hydrated_schema(self) -> HydratedSchema:

@@ -1,13 +1,4 @@
 # Native Kat
-interface BaseObject {
-   primary_key: ID!
-}
-
-interface BaseOOI implements BaseObject {
-   primary_key: ID!
-   human_readable: String!
-}
-
 type Test {
    primary_key(natural_key: [String] = ["test"]): ID!
    human_readable: String!

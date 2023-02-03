@@ -1,13 +1,3 @@
-# Native Kat
-interface BaseObject {
-   primary_key: ID!
-}
-
-interface BaseOOI implements BaseObject {
-   primary_key: ID!
-   human_readable: String!
-}
-
 directive @test(arg1: String!) on FIELD_DEFINITION
 
 type Test implements BaseOOI & BaseObject {
