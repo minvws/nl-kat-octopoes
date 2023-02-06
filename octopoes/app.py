@@ -114,7 +114,7 @@ class App:
         Args:
             org: The organisation to create an ingesters for.
         """
-        return Ingester(self.ctx, f"ingesters-{org.id}", organisation=org)
+        return Ingester(self.ctx, f"{org.id}", organisation=org)
 
     def monitor_organisations(self) -> None:
         """Monitor the organisations in the Katalogus service, and add/remove organisations from the ingesters."""

@@ -1,0 +1,7 @@
+# Native Kat
+
+type Test implements BaseOOI {
+   primary_key(natural_key: [String] = ["test"]): ID!
+   human_readable: String!
+   test: String!
+}
