@@ -113,7 +113,7 @@ class Server:
 
     def get_ingesters(self) -> Any:
         """List ingesters."""
-        return [IngesterModel(id=ingester) for ingester in self.ingesters.keys()]
+        return [IngesterModel(id=ingester) for ingester in self.ingesters]
 
     def get_graphql_schema(self, ingester_id: str) -> Any:
         """Serve graphql schema."""
