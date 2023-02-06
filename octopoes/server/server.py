@@ -2,6 +2,7 @@
 
 import logging
 from pathlib import Path
+from string import Template
 from typing import Any, Dict, Optional, List
 
 import uvicorn
@@ -138,7 +139,7 @@ class Server:
         graphiql_template = Path(__file__).parent / "static" / "graphiql.html"
         with open(graphiql_template, "r") as graphiql_html:
             template = graphiql_html.read()
-            return template.replace("{{ingester_id}}", ingester_id)
+            return Template(template).substitute(ingester_id=ingester_id)
 
     def post_graphql(self, ingester_id: str, request_body: GraphqlRequest) -> Any:
         """Execute grqpql query."""
