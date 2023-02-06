@@ -59,10 +59,10 @@ class XTDBStatus(BaseModel):
 
     version: Optional[str]
     revision: Optional[str]
-    indexVersion: Optional[int]
-    consumerState: Optional[str]
-    kvStore: Optional[str]
-    estimateNumKeys: Optional[int]
+    index_version: Optional[int] = Field(None, alias="indexVersion")
+    consumer_state: Optional[str] = Field(None, alias="consumerState")
+    kv_store: Optional[str] = Field(None, alias="kvStore")
+    estimate_num_keys: Optional[int] = Field(None, alias="estimateNumKeys")
     size: Optional[int]
 
 

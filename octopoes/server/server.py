@@ -8,7 +8,7 @@ import uvicorn
 from fastapi import FastAPI, status
 from fastapi.responses import PlainTextResponse, HTMLResponse, JSONResponse
 from graphql import print_schema, graphql_sync
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from octopoes.context.context import AppContext
 from octopoes.ingesters.ingester import Ingester
@@ -20,7 +20,7 @@ from octopoes.version import version
 class GraphqlRequest(BaseModel):
     """Request body for graphql queries."""
 
-    operationName: Optional[str]
+    operation_name: Optional[str] = Field(None, alias="operationName")
     query: str
 
 
