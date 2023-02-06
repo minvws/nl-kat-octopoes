@@ -30,10 +30,10 @@ class BaseObjectMeta:
     _natural_key_attrs: List[str]
     _human_readable_format: str
 
-    @property
-    def natural_key_attrs(self) -> List[str]:
+    @classmethod
+    def get_natural_key_attrs(cls) -> List[str]:
         """Make natural_key_attrs public."""
-        return self._natural_key_attrs
+        return cls._natural_key_attrs
 
     @property
     def human_readable_format(self) -> str:

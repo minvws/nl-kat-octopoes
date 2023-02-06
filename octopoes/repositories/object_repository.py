@@ -72,7 +72,7 @@ class ObjectRepository:
         graphql_cls: GraphQLObjectType = self.schema.hydrated_schema.schema.get_type(obj_data["object_type"])
 
         for key, value in obj_data.items():
-            if key in object_cls.natural_key_attrs and self.dataclass_generator.is_field_foreign_key(  # type: ignore
+            if key in object_cls.get_natural_key_attrs() and self.dataclass_generator.is_field_foreign_key(
                 graphql_cls.fields[key]
             ):
                 obj_data[key] = self.get(value)
