@@ -89,7 +89,7 @@ class XTDBHTTPClient:
         """Get XTDB status."""
         res = self._session.get("/status")
         self._verify_response(res)
-        return XTDBStatus.parse_obj(res.json())
+        return XTDBStatus.parse_raw(res.content)
 
     def get_entity(self, entity_id: str, valid_time: Optional[datetime] = None) -> Dict[str, Any]:
         """Load entity from XTDB."""
