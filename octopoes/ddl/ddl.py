@@ -1,6 +1,7 @@
 """GraphQL DDL module."""
 from __future__ import annotations
 
+import re
 from functools import cached_property
 from logging import getLogger
 from pathlib import Path
@@ -26,6 +27,8 @@ from graphql import (
     ObjectTypeDefinitionNode,
     TypeDefinitionNode,
     ScalarTypeDefinitionNode,
+    InputObjectTypeDefinitionNode,
+    UnionTypeDefinitionNode,
 )
 
 logger = getLogger(__name__)
@@ -71,6 +74,7 @@ KAT_DIRECTIVES = {
 RESERVED_TYPE_NAMES = {
     "Query",
     "Mutation",
+    "Subscription",
     "BaseObject",
     "OOI",
 }
@@ -168,25 +172,54 @@ class SchemaLoader:
 
             if isinstance(definition, DirectiveDefinitionNode):
                 raise SchemaValidationException(
-                    f"Custom directive definitions are not allowed [directive={definition.name.value}]"
+                    f"A schema may only define a Type, Enum, Union, or Interface, not Directive "
+                    f"[directive={definition.name.value}]"
+                )
+
+            if isinstance(definition, InputObjectTypeDefinitionNode):
+                raise SchemaValidationException(
+                    f"A schema may only define a Type, Enum, Union, or Interface, not Input "
+                    f"[type={definition.name.value}]"
                 )
 
             if isinstance(definition, ScalarTypeDefinitionNode):
                 raise SchemaValidationException(
-                    f"Custom scalar definitions are not allowed [type={definition.name.value}]"
+                    f"A schema may only define a Type, Enum, Union, or Interface, not Scalar "
+                    f"[type={definition.name.value}]"
+                )
+
+            if isinstance(definition, UnionTypeDefinitionNode) and not definition.name.value.startswith("U"):
+                raise SchemaValidationException(
+                    f"Self-defined unions must start with a U [type={definition.name.value}]"
                 )
 
             if isinstance(definition, TypeDefinitionNode):
-                if definition.name.value in RESERVED_TYPE_NAMES:
+                if definition.name.value in RESERVED_TYPE_NAMES or definition.name.value in BUILTIN_TYPES:
                     raise SchemaValidationException(
-                        f"Use of reserved type name is now allowed [type={definition.name.value}]"
+                        f"Use of reserved type name is not allowed [type={definition.name.value}]"
                     )
+
+            if not re.match(r"^[A-Z][a-z]+(?:[A-Z][a-z]+)*$", definition.name.value):
+                raise SchemaValidationException(
+                    f"Object types must follow PascalCase conventions [type={definition.name.value}]"
+                )
 
             if isinstance(definition, ObjectTypeDefinitionNode):
                 interface_names = [interface.name.value for interface in definition.interfaces]
-                if "BaseObject" not in interface_names or "OOI" not in interface_names:
+                if "BaseObject" not in interface_names and "OOI" not in interface_names:
                     raise SchemaValidationException(
-                        f"Object types must implement BaseObject and OOI [type={definition.name.value}]"
+                        f"An object must inherit both BaseObject and OOI (missing both) "
+                        f"[type={definition.name.value}]"
+                    )
+                if "BaseObject" not in interface_names and "OOI" in interface_names:
+                    raise SchemaValidationException(
+                        f"An object must inherit both BaseObject and OOI (missing BaseObject) "
+                        f"[type={definition.name.value}]"
+                    )
+                if "BaseObject" in interface_names and "OOI" not in interface_names:
+                    raise SchemaValidationException(
+                        f"An object must inherit both BaseObject and OOI (missing OOI) "
+                        f"[type={definition.name.value}]"
                     )
 
     @cached_property
