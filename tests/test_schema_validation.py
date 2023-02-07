@@ -10,6 +10,12 @@ def test_schema():
     SchemaLoader((Path(__file__).parent / "fixtures" / "schema_sample.graphql").read_text())
 
 
+def test_schema__natural_key_as_fields__schemavalidationerror():
+    with pytest.raises(SchemaValidationException) as exc:
+        SchemaLoader((Path(__file__).parent / "fixtures" / "schema_incorrect_natural_key.graphql").read_text())
+    assert str(exc.value) == "Natural keys must be defined as fields [type=Animal, natural_key=size]"
+
+
 def test_schema__directive__schemavalidationerror():
     with pytest.raises(SchemaValidationException) as exc:
         SchemaLoader((Path(__file__).parent / "fixtures" / "schema_directive.graphql").read_text())

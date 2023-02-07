@@ -29,6 +29,8 @@ from graphql import (
     ScalarTypeDefinitionNode,
     InputObjectTypeDefinitionNode,
     UnionTypeDefinitionNode,
+    EnumTypeDefinitionNode,
+    InterfaceTypeDefinitionNode,
 )
 
 logger = getLogger(__name__)
@@ -62,14 +64,12 @@ BUILTIN_DIRECTIVES = {
     "specifiedBy",
 }
 
-
 KAT_DIRECTIVES = {
     "constraint",
     "natural_key",
     "format",
     "reverse_name",
 }
-
 
 RESERVED_TYPE_NAMES = {
     "Query",
@@ -78,7 +78,6 @@ RESERVED_TYPE_NAMES = {
     "BaseObject",
     "OOI",
 }
-
 
 BASE_SCHEMA_FILE = Path(__file__).parent / "schemas" / "base_schema.graphql"
 OOI_SCHEMA_FILE = Path(__file__).parent / "schemas" / "ooi_schema.graphql"
@@ -161,14 +160,15 @@ class SchemaLoader:
         """Load the schema from disk."""
         return OOISchema(extend_schema(self.base_schema.schema, self.ooi_schema_document))
 
-    def validate_ooi_schema(self) -> None:
+    def validate_ooi_schema(self) -> None:  # pylint: disable=too-many-branches
         """Look into the AST of the schema definition file to apply restrictions.
 
         References:
             - https://graphql-core-3.readthedocs.io/en/latest/modules/language.html
         """
         # Check all definitions to apply validations
-        for definition in self.ooi_schema_document.definitions:
+        # Note: this should be rewritten to switch/case when we drop Python 3.8 and 3.9 support
+        for definition in self.ooi_schema_document.definitions:  # pylint: disable=too-many-nested-blocks
 
             if isinstance(definition, DirectiveDefinitionNode):
                 raise SchemaValidationException(
@@ -188,6 +188,14 @@ class SchemaLoader:
                     f"[type={definition.name.value}]"
                 )
 
+            if not isinstance(
+                definition,
+                (TypeDefinitionNode, UnionTypeDefinitionNode, EnumTypeDefinitionNode, InterfaceTypeDefinitionNode),
+            ):
+                raise SchemaValidationException(
+                    f"A schema may only define a Type, Enum, Union, or Interface " f"[type={definition.name.value}]"
+                )
+
             if isinstance(definition, UnionTypeDefinitionNode) and not definition.name.value.startswith("U"):
                 raise SchemaValidationException(
                     f"Self-defined unions must start with a U [type={definition.name.value}]"
@@ -199,7 +207,30 @@ class SchemaLoader:
                         f"Use of reserved type name is not allowed [type={definition.name.value}]"
                     )
 
-            if not re.match(r"^[A-Z][a-z]+(?:[A-Z][a-z]+)*$", definition.name.value):
+            if isinstance(definition, TypeDefinitionNode) and not isinstance(
+                definition,
+                (UnionTypeDefinitionNode, EnumTypeDefinitionNode, InterfaceTypeDefinitionNode),
+            ):
+
+                natural_keys = []
+                fields = []
+                for field in definition.fields:
+
+                    fields.append(field.name.value)
+                    if field.name.value == "primary_key":
+                        for argument in field.arguments:
+                            if argument.name.value == "natural_key":
+                                for value in argument.default_value.values:
+                                    natural_keys.append(value.value)
+
+                for natural_key in natural_keys:
+                    if natural_key not in fields:
+                        raise SchemaValidationException(
+                            f"Natural keys must be defined as fields "
+                            f"[type={definition.name.value}, natural_key={natural_key}]"
+                        )
+
+            if not re.match(r"^[A-Z]+[a-z]*(?:\d*(?:[A-Z]+[a-z]*)?)*$", definition.name.value):
                 raise SchemaValidationException(
                     f"Object types must follow PascalCase conventions [type={definition.name.value}]"
                 )
