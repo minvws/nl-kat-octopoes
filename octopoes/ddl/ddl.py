@@ -195,18 +195,18 @@ class SchemaLoader:
     def validate_union_definition_node(self, node: UnionTypeDefinitionNode) -> str:
         """Validate that all union nodes start with a U."""
         if not node.name.value.startswith("U"):
-            return f"Self-defined unions must start with a U " f"[type={node.name.value}]"
+            return f"Self-defined unions must start with a U [type={node.name.value}]"
         return ""
 
     def validate_object_type_definition_node(self, node: ObjectTypeDefinitionNode) -> str:
         """Validate that all types inherit from BaseObject and OOI."""
         interface_names = [interface.name.value for interface in node.interfaces]
         if "BaseObject" not in interface_names and "OOI" not in interface_names:
-            return f"An object must inherit both BaseObject and OOI (missing both) " f"[type={node.name.value}]"
+            return f"An object must inherit both BaseObject and OOI (missing both) [type={node.name.value}]"
         if "BaseObject" not in interface_names and "OOI" in interface_names:
-            return f"An object must inherit both BaseObject and OOI (missing BaseObject) " f"[type={node.name.value}]"
+            return f"An object must inherit both BaseObject and OOI (missing BaseObject) [type={node.name.value}]"
         if "BaseObject" in interface_names and "OOI" not in interface_names:
-            return f"An object must inherit both BaseObject and OOI (missing OOI) " f"[type={node.name.value}]"
+            return f"An object must inherit both BaseObject and OOI (missing OOI) [type={node.name.value}]"
 
         return ""
 
@@ -219,11 +219,11 @@ class SchemaLoader:
 
     def validate_input_object_definition_node(self, node: InputObjectTypeDefinitionNode) -> str:
         """Validate that inputs are not defined in the schema."""
-        return f"A schema may only define a Type, Enum, Union, or Interface, not Input " f"[type={node.name.value}]"
+        return f"A schema may only define a Type, Enum, Union, or Interface, not Input [type={node.name.value}]"
 
     def validate_scalar_type_definition_node(self, node: ScalarTypeDefinitionNode) -> str:
         """Validate that scalars are not defined in the schema."""
-        return f"A schema may only define a Type, Enum, Union, or Interface, not Scalar " f"[type={node.name.value}]"
+        return f"A schema may only define a Type, Enum, Union, or Interface, not Scalar [type={node.name.value}]"
 
     def validate_ooi_schema(self) -> None:
         """Look into the AST of the schema definition file to apply restrictions.
