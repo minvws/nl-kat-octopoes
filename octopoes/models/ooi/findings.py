@@ -36,6 +36,8 @@ class SnykFindingType(FindingType):
 class KATFindingType(FindingType):
     object_type: Literal["KATFindingType"] = "KATFindingType"
 
+class NessusFindingType(FindingType):
+    object_type: Literal["NessusFindingType"] = "NessusFindingType"
 
 class Finding(OOI):
     object_type: Literal["Finding"] = "Finding"
