@@ -1,6 +1,6 @@
 enum Color { red, green }
 
-type zooKeeper implements BaseOOI & BaseObject {
+type zooKeeper implements OOI & BaseObject {
   object_type: String!
   primary_key(natural_key: [String] = ["name"]): ID!
   human_readable(format: String = "{name} pets {pet_name}"): String!
@@ -8,7 +8,7 @@ type zooKeeper implements BaseOOI & BaseObject {
   pet: Animal!
 }
 
-type animal implements BaseOOI & BaseObject {
+type animal implements OOI & BaseObject {
   object_type: String!
   primary_key(natural_key: [String] = ["name"]): ID!
   human_readable(format: String = "Hello: {name}"): String!

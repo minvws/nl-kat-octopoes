@@ -31,6 +31,7 @@ from graphql import (
     UnionTypeDefinitionNode,
     EnumTypeDefinitionNode,
     InterfaceTypeDefinitionNode,
+    DefinitionNode,
 )
 
 logger = getLogger(__name__)
@@ -160,98 +161,97 @@ class SchemaLoader:
         """Load the schema from disk."""
         return OOISchema(extend_schema(self.base_schema.schema, self.ooi_schema_document))
 
-    def validate_ooi_schema(self) -> None:  # pylint: disable=too-many-branches
+    def validate_definition(self, definition: DefinitionNode) -> str:
+        """Validate whether an individual definition is valid."""
+        # Validate trivial cases first
+        # Note: this should be rewritten to switch/case when we drop Python 3.8 and 3.9 support
+        error_messages = {
+            isinstance(definition, UnionTypeDefinitionNode)
+            and not definition.name.value.startswith("U"): f"Self-defined unions must start with a U "
+            f"[type={definition.name.value}]",
+            isinstance(definition, TypeDefinitionNode)
+            and (
+                definition.name.value in RESERVED_TYPE_NAMES or definition.name.value in BUILTIN_TYPES
+            ): f"Use of reserved type name is not allowed "
+            f"[type={definition.name.value}]",
+            not re.match(
+                r"^[A-Z]+[a-z]*(?:\d*(?:[A-Z]+[a-z]*)?)*$", definition.name.value
+            ): f"Object types must follow PascalCase conventions "
+            f"[type={definition.name.value}]",
+            not isinstance(
+                definition,
+                (TypeDefinitionNode, UnionTypeDefinitionNode, EnumTypeDefinitionNode, InterfaceTypeDefinitionNode),
+            ): f"A schema may only define a Type, Enum, Union, or Interface "
+            f"[type={definition.name.value}]",
+            isinstance(
+                definition, DirectiveDefinitionNode
+            ): f"A schema may only define a Type, Enum, Union, or Interface, not Directive "
+            f"[directive={definition.name.value}]",
+            isinstance(
+                definition, InputObjectTypeDefinitionNode
+            ): f"A schema may only define a Type, Enum, Union, or Interface, not Input "
+            f"[type={definition.name.value}]",
+            isinstance(
+                definition, ScalarTypeDefinitionNode
+            ): f"A schema may only define a Type, Enum, Union, or Interface, not Scalar "
+            f"[type={definition.name.value}]",
+        }
+
+        # Validate that all types inherit from BaseObject and OOI
+        if isinstance(definition, ObjectTypeDefinitionNode):
+            interface_names = [interface.name.value for interface in definition.interfaces]
+            if "BaseObject" not in interface_names and "OOI" not in interface_names:
+                return (
+                    f"An object must inherit both BaseObject and OOI (missing both) " f"[type={definition.name.value}]"
+                )
+            if "BaseObject" not in interface_names and "OOI" in interface_names:
+                return (
+                    f"An object must inherit both BaseObject and OOI (missing BaseObject) "
+                    f"[type={definition.name.value}]"
+                )
+            if "BaseObject" in interface_names and "OOI" not in interface_names:
+                return (
+                    f"An object must inherit both BaseObject and OOI (missing OOI) " f"[type={definition.name.value}]"
+                )
+
+        # Validate that natural keys are defined as fields
+        if isinstance(definition, TypeDefinitionNode) and not isinstance(  # pylint: disable=too-many-nested-blocks
+            definition,
+            (UnionTypeDefinitionNode, EnumTypeDefinitionNode, InterfaceTypeDefinitionNode, ScalarTypeDefinitionNode),
+        ):
+
+            natural_keys = set()
+            fields = set()
+            for field in definition.fields:
+
+                fields.add(field.name.value)
+                if field.name.value == "primary_key":
+                    for argument in field.arguments:
+                        if argument.name.value == "natural_key":
+                            for value in argument.default_value.values:
+                                natural_keys.add(value.value)
+
+            for natural_key in natural_keys:
+                if natural_key not in fields:
+                    return (
+                        f"Natural keys must be defined as fields "
+                        f"[type={definition.name.value}, natural_key={natural_key}]"
+                    )
+
+        return error_messages.get(True, "")
+
+    def validate_ooi_schema(self) -> None:
         """Look into the AST of the schema definition file to apply restrictions.
 
         References:
             - https://graphql-core-3.readthedocs.io/en/latest/modules/language.html
         """
-        # Check all definitions to apply validations
-        # Note: this should be rewritten to switch/case when we drop Python 3.8 and 3.9 support
-        for definition in self.ooi_schema_document.definitions:  # pylint: disable=too-many-nested-blocks
+        for definition in self.ooi_schema_document.definitions:
 
-            if isinstance(definition, DirectiveDefinitionNode):
-                raise SchemaValidationException(
-                    f"A schema may only define a Type, Enum, Union, or Interface, not Directive "
-                    f"[directive={definition.name.value}]"
-                )
+            exception = self.validate_definition(definition)
 
-            if isinstance(definition, InputObjectTypeDefinitionNode):
-                raise SchemaValidationException(
-                    f"A schema may only define a Type, Enum, Union, or Interface, not Input "
-                    f"[type={definition.name.value}]"
-                )
-
-            if isinstance(definition, ScalarTypeDefinitionNode):
-                raise SchemaValidationException(
-                    f"A schema may only define a Type, Enum, Union, or Interface, not Scalar "
-                    f"[type={definition.name.value}]"
-                )
-
-            if not isinstance(
-                definition,
-                (TypeDefinitionNode, UnionTypeDefinitionNode, EnumTypeDefinitionNode, InterfaceTypeDefinitionNode),
-            ):
-                raise SchemaValidationException(
-                    f"A schema may only define a Type, Enum, Union, or Interface " f"[type={definition.name.value}]"
-                )
-
-            if isinstance(definition, UnionTypeDefinitionNode) and not definition.name.value.startswith("U"):
-                raise SchemaValidationException(
-                    f"Self-defined unions must start with a U [type={definition.name.value}]"
-                )
-
-            if isinstance(definition, TypeDefinitionNode):
-                if definition.name.value in RESERVED_TYPE_NAMES or definition.name.value in BUILTIN_TYPES:
-                    raise SchemaValidationException(
-                        f"Use of reserved type name is not allowed [type={definition.name.value}]"
-                    )
-
-            if isinstance(definition, TypeDefinitionNode) and not isinstance(
-                definition,
-                (UnionTypeDefinitionNode, EnumTypeDefinitionNode, InterfaceTypeDefinitionNode),
-            ):
-
-                natural_keys = []
-                fields = []
-                for field in definition.fields:
-
-                    fields.append(field.name.value)
-                    if field.name.value == "primary_key":
-                        for argument in field.arguments:
-                            if argument.name.value == "natural_key":
-                                for value in argument.default_value.values:
-                                    natural_keys.append(value.value)
-
-                for natural_key in natural_keys:
-                    if natural_key not in fields:
-                        raise SchemaValidationException(
-                            f"Natural keys must be defined as fields "
-                            f"[type={definition.name.value}, natural_key={natural_key}]"
-                        )
-
-            if not re.match(r"^[A-Z]+[a-z]*(?:\d*(?:[A-Z]+[a-z]*)?)*$", definition.name.value):
-                raise SchemaValidationException(
-                    f"Object types must follow PascalCase conventions [type={definition.name.value}]"
-                )
-
-            if isinstance(definition, ObjectTypeDefinitionNode):
-                interface_names = [interface.name.value for interface in definition.interfaces]
-                if "BaseObject" not in interface_names and "OOI" not in interface_names:
-                    raise SchemaValidationException(
-                        f"An object must inherit both BaseObject and OOI (missing both) "
-                        f"[type={definition.name.value}]"
-                    )
-                if "BaseObject" not in interface_names and "OOI" in interface_names:
-                    raise SchemaValidationException(
-                        f"An object must inherit both BaseObject and OOI (missing BaseObject) "
-                        f"[type={definition.name.value}]"
-                    )
-                if "BaseObject" in interface_names and "OOI" not in interface_names:
-                    raise SchemaValidationException(
-                        f"An object must inherit both BaseObject and OOI (missing OOI) "
-                        f"[type={definition.name.value}]"
-                    )
+            if exception:
+                raise SchemaValidationException(exception)
 
     @cached_property
     def full_schema(self) -> OOISchema:
