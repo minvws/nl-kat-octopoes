@@ -248,9 +248,7 @@ class SchemaLoader:
         """
         for definition in self.ooi_schema_document.definitions:
 
-            exception = self.validate_definition(definition)
-
-            if exception:
+            if exception := self.validate_definition(definition):
                 raise SchemaValidationException(exception)
 
     @cached_property
