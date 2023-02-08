@@ -4,7 +4,7 @@ from __future__ import annotations
 from enum import Enum
 from ipaddress import IPv4Address, IPv6Address
 from logging import getLogger
-from typing import Dict, Union, Literal, Any, Optional, List, Iterator, Type
+from typing import Dict, Union, Literal, Any, Optional, List, Iterator, Type, Tuple
 
 import mmh3
 from graphql import (
@@ -12,10 +12,12 @@ from graphql import (
     GraphQLUnionType,
     GraphQLField,
     GraphQLEnumType,
+    GraphQLOutputType,
+    GraphQLList,
 )
 from pydantic import create_model, BaseModel
 
-from octopoes.ddl.ddl import OOISchema
+from octopoes.ddl.ddl import BaseSchema
 from octopoes.utils.dict_utils import flatten
 
 logger = getLogger(__name__)
@@ -89,7 +91,7 @@ class OOI(BaseObject):
 class DataclassGenerator:
     """Generates (Pydantic) dataclasses from a GraphQL schema."""
 
-    def __init__(self, schema: OOISchema):
+    def __init__(self, schema: BaseSchema):
         """Initialize instance."""
         self.schema = schema
         self.dataclasses: Dict[str, Type[BaseObject]] = {}
@@ -101,30 +103,43 @@ class DataclassGenerator:
         real_type = field.type.of_type if getattr(field.type, "of_type", None) else field.type
         return isinstance(real_type, (GraphQLObjectType, GraphQLUnionType))
 
+    def get_deepest_type(self, type_: GraphQLOutputType, is_list: bool = False) -> Tuple[GraphQLOutputType, bool]:
+        """Get the deepest type of a GraphQL type."""
+        is_list = is_list or isinstance(type_, GraphQLList)
+        if getattr(type_, "of_type", None):
+            return self.get_deepest_type(type_.of_type, is_list)
+        return type_, is_list
+
     def graphql_field_to_python_type(  # pylint: disable=too-many-return-statements, inconsistent-return-statements
         self, field: GraphQLField
     ) -> Any:
         """Convert a GraphQL field to a Python type."""
-        real_type = field.type.of_type if getattr(field.type, "of_type", None) else field.type
+        real_type, is_list = self.get_deepest_type(field.type)
+        new_type: Any = None
         if real_type.name == "String":
-            return str
+            new_type = str
         if real_type.name == "Int":
-            return int
+            new_type = int
         if real_type.name == "HostnameX":
-            return str
+            new_type = str
         if real_type.name == "InternationalDomainName":
-            return str
+            new_type = str
         if real_type.name == "IPv4":
-            return IPv4Address
+            new_type = IPv4Address
         if real_type.name == "IPv6":
-            return IPv6Address
+            new_type = IPv6Address
         if isinstance(real_type, GraphQLEnumType):
-            return Enum(real_type.name, {t: t for t in real_type.values.keys()})
+            new_type = Enum(real_type.name, {t: t for t in real_type.values.keys()})  # type: ignore
         if isinstance(real_type, GraphQLObjectType):
-            return self.generate_pydantic_model(real_type)
+            new_type = self.generate_pydantic_model(real_type)
         if isinstance(real_type, GraphQLUnionType):
             types_ = [self.generate_pydantic_model(t) for t in real_type.types]
-            return Union[tuple(types_)]
+            new_type = Union[tuple(types_)]
+        if new_type is None:
+            raise NotImplementedError(f"Cannot convert {real_type} to Python type")
+        if is_list:
+            new_type = List[new_type]
+        return new_type
 
     def generate_pydantic_model(self, object_type: GraphQLObjectType) -> Type[BaseObject]:
         """Generate a dataclass for the given object type."""

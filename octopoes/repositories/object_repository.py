@@ -2,9 +2,9 @@
 import json
 import logging
 from datetime import timezone, datetime
-from typing import Any, Dict
+from typing import Any, Dict, List
 
-from graphql import GraphQLObjectType
+from graphql import GraphQLObjectType, GraphQLUnionType
 
 from octopoes.connectors.services.xtdb import XTDBHTTPClient, XTDBSession, OperationType
 from octopoes.ddl.dataclasses import BaseObject, DataclassGenerator
@@ -85,3 +85,35 @@ class ObjectRepository:
         for obj_ in obj.dependencies():
             xtdb_session.add((OperationType.PUT, self.serialize_obj(obj_), datetime.now(timezone.utc)))
         xtdb_session.commit()
+
+    def list_by_object_type(self, object_type: str) -> List[Dict[str, Any]]:
+        """List all objects of a given type."""
+        type_info = self.schema.hydrated_schema.schema.get_type(object_type)
+        query = ""
+        if isinstance(type_info, GraphQLObjectType):
+            query = (
+                f"{{:query {{:find [(pull ?entity [*])] " f':where [[?entity :object_type "{type_info.name}"]] }} }}'
+            )
+        if isinstance(type_info, GraphQLUnionType):
+            types_ = [f'"{type_.name}"' for type_ in type_info.types]
+            types__ = ", ".join(types_)
+            query = (
+                f"{{:query {{:find [(pull ?entity [*])]"
+                ":in [[_object_type ...]]"
+                f":where [[?entity :object_type _object_type]] }} "
+                f":in-args [[{types__}]] }}"
+            )
+
+        results = self.xtdb_client.query(query)
+        return [self.rm_prefixes(row[0]) for row in results]
+
+    def list_by_incoming_relation(
+        self, primary_key: str, foreign_object_type: str, foreign_field_name: str
+    ) -> List[Dict[str, Any]]:
+        """List all objects with a specific field pointing to a given object."""
+        query = (
+            f"{{:query {{:find [(pull ?entity [*])]"
+            f':where [[?entity :{foreign_object_type}/{foreign_field_name} "{primary_key}"]] }} }}'
+        )
+        results = self.xtdb_client.query(query)
+        return [self.rm_prefixes(row[0]) for row in results]

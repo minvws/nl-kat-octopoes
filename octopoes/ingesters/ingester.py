@@ -38,7 +38,7 @@ class Ingester:  # pylint: disable=too-many-instance-attributes
 
         # Try to load the current_schema from XTDB
         self.current_schema = self.load_schema()
-        self.dataclass_generator = DataclassGenerator(self.current_schema.ooi_schema)
+        self.dataclass_generator = DataclassGenerator(self.current_schema.extended_schema)
         self.setup_resolvers()
         self.object_repository = ObjectRepository(self.current_schema, self.dataclass_generator, self.xtdb_client)
 
@@ -46,7 +46,7 @@ class Ingester:  # pylint: disable=too-many-instance-attributes
         """Update the current_schema and update XTDB as well as in-memory structures."""
         self.current_schema = new_schema
         self.persist_schema()
-        self.dataclass_generator = DataclassGenerator(self.current_schema.ooi_schema)
+        self.dataclass_generator = DataclassGenerator(self.current_schema.extended_schema)
         self.setup_resolvers()
         self.object_repository = ObjectRepository(self.current_schema, self.dataclass_generator, self.xtdb_client)
 
@@ -55,6 +55,7 @@ class Ingester:  # pylint: disable=too-many-instance-attributes
         try:
             current_schema_def = self.xtdb_client.get_entity("schema")
             current_schema = SchemaLoader(current_schema_def["schema"])
+            current_schema = SchemaLoader()
         except HTTPError as exc:
             if exc.response.status_code == 404:
                 logger.info("No current_schema found in XTDB, using OpenKAT schema from disk")
@@ -112,31 +113,26 @@ class Ingester:  # pylint: disable=too-many-instance-attributes
         """Fetch instances of type from XTDB."""
         # outgoing relation
         if parent_obj and type_info.field_name in parent_obj:
-            query = (
-                f"{{:query {{:find [(pull ?entity [*])] "
-                f':where [[?entity :xt/id "{parent_obj[type_info.field_name]}"]] }} }}'
-            )
-            results = self.xtdb_client.query(query)
-            return self.object_repository.rm_prefixes(results[0][0])
+            return self.object_repository.get(parent_obj[type_info.field_name])
 
-        if type_info.return_type.of_type == self.current_schema.hydrated_schema.ooi_union_type:
-            query = """
-                {:query {:find [(pull ?entity [*])]
-                         :where [[?entity :object_type]] } }"""
-            results = self.xtdb_client.query(query)
-            return [self.object_repository.rm_prefixes(row[0]) for row in results]
-        return []
+        # incoming relation
+        if parent_obj:
+            return self.object_repository.list_by_incoming_relation(
+                parent_obj["primary_key"], type_info.return_type.of_type.name, kwargs["backlink"]
+            )
+
+        return self.object_repository.list_by_object_type(type_info.return_type.of_type.name)
 
     def setup_resolvers(self) -> None:
         """Set resolvers for GraphQL schema."""
         # Set resolver for root OOI union type
         self.current_schema.hydrated_schema.schema.query_type.fields["OOI"].resolve = self.resolve_graphql_type
 
-        # Set type resolver for all union types
+        # Setup type resolver for all union types
         for union_type in self.current_schema.hydrated_schema.union_types:
             union_type.resolve_type = self.resolve_graphql_union
 
-        # Set resolver for all object types
+        # Setup resolvers for all fields
         for object_type in self.current_schema.hydrated_schema.object_types:
             for field in object_type.fields.values():
                 real_type = field.type.of_type if getattr(field.type, "of_type", None) else field.type
@@ -164,21 +160,23 @@ class Ingester:  # pylint: disable=too-many-instance-attributes
         # ingest bit configs
 
         # ingest normalizer outputs / origins
-        port = {
-            "object_type": "IPPort",
-            "address": {
-                "object_type": "IPv4Address",
-                "network": {
-                    "object_type": "Network",
-                    "name": "internet",
-                },
-                "address": "1.1.1.1",
+        hostname = {
+            "object_type": "Hostname",
+            "network": {
+                "object_type": "Network",
+                "name": "internet",
             },
-            "port": 80,
-            "state": "open",
-            "protocol": "tcp",
+            "name": "lisser.tech",
         }
-        port_ = self.dataclass_generator.parse_obj(port)
+        origin = {
+            "object_type": "Origin",
+            "type": "declaration",
+            "source": hostname,
+            "method": "manual",
+            "results": [hostname],
+            "normalizer_id": "12345",
+        }
+        port_ = self.dataclass_generator.parse_obj(origin)
         self.object_repository.save(port_)
 
         # wait for processing to complete
