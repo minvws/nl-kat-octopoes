@@ -82,8 +82,7 @@ DnsRecordType = Union[
     ResolvedHostname,
     NXDOMAIN,
 ]
-FindingType = Union[
-    Finding,
+FindingTypeType = Union[
     KATFindingType,
     CVEFindingType,
     RetireJSFindingType,
@@ -128,7 +127,6 @@ OOIType = Union[
     CertificateType,
     DnsType,
     DnsRecordType,
-    FindingType,
     NetworkType,
     ServiceType,
     SoftwareType,
@@ -139,6 +137,8 @@ OOIType = Union[
     DNSSPFRecord,
     MonitoringType,
     EmailSecurityType,
+    Finding,
+    FindingTypeType,
 ]
 
 
