@@ -1,6 +1,7 @@
 """GraphQL DDL module."""
 from __future__ import annotations
 
+import re
 from functools import cached_property
 from logging import getLogger
 from pathlib import Path
@@ -26,6 +27,10 @@ from graphql import (
     ObjectTypeDefinitionNode,
     TypeDefinitionNode,
     ScalarTypeDefinitionNode,
+    InputObjectTypeDefinitionNode,
+    UnionTypeDefinitionNode,
+    EnumTypeDefinitionNode,
+    InterfaceTypeDefinitionNode,
 )
 
 logger = getLogger(__name__)
@@ -59,7 +64,6 @@ BUILTIN_DIRECTIVES = {
     "specifiedBy",
 }
 
-
 KAT_DIRECTIVES = {
     "constraint",
     "natural_key",
@@ -67,14 +71,13 @@ KAT_DIRECTIVES = {
     "reverse_name",
 }
 
-
 RESERVED_TYPE_NAMES = {
     "Query",
     "Mutation",
+    "Subscription",
     "BaseObject",
     "OOI",
 }
-
 
 BASE_SCHEMA_FILE = Path(__file__).parent / "schemas" / "base_schema.graphql"
 OOI_SCHEMA_FILE = Path(__file__).parent / "schemas" / "ooi_schema.graphql"
@@ -157,37 +160,94 @@ class SchemaLoader:
         """Load the schema from disk."""
         return OOISchema(extend_schema(self.base_schema.schema, self.ooi_schema_document))
 
+    def validate_type_definition_node(self, node: TypeDefinitionNode) -> str:
+        """Validate type definitions in general."""
+        if node.name.value in RESERVED_TYPE_NAMES or node.name.value in BUILTIN_TYPES:
+            return f"Use of reserved type name is not allowed [type={node.name.value}]"
+
+        if not re.match(r"^[A-Z]+[a-z]*(?:\d*(?:[A-Z]+[a-z]*)?)*$", node.name.value):
+            return f"Object types must follow PascalCase conventions [type={node.name.value}]"
+
+        # Validate that natural keys are defined as fields
+        if not isinstance(  # pylint: disable=too-many-nested-blocks
+            node,
+            (UnionTypeDefinitionNode, EnumTypeDefinitionNode, InterfaceTypeDefinitionNode, ScalarTypeDefinitionNode),
+        ):
+            natural_keys = set()
+            fields = set()
+            for field in node.fields:
+
+                fields.add(field.name.value)
+                if field.name.value == "primary_key":
+                    for argument in field.arguments:
+                        if argument.name.value == "natural_key":
+                            for value in argument.default_value.values:
+                                natural_keys.add(value.value)
+
+            for natural_key in natural_keys:
+                if natural_key not in fields:
+                    return (
+                        f"Natural keys must be defined as fields "
+                        f"[type={node.name.value}, natural_key={natural_key}]"
+                    )
+        return ""
+
+    def validate_union_definition_node(self, node: UnionTypeDefinitionNode) -> str:
+        """Validate that all union nodes start with a U."""
+        if not node.name.value.startswith("U"):
+            return f"Self-defined unions must start with a U [type={node.name.value}]"
+        return ""
+
+    def validate_object_type_definition_node(self, node: ObjectTypeDefinitionNode) -> str:
+        """Validate that all types inherit from BaseObject and OOI."""
+        interface_names = [interface.name.value for interface in node.interfaces]
+        if "BaseObject" not in interface_names and "OOI" not in interface_names:
+            return f"An object must inherit both BaseObject and OOI (missing both) [type={node.name.value}]"
+        if "BaseObject" not in interface_names and "OOI" in interface_names:
+            return f"An object must inherit both BaseObject and OOI (missing BaseObject) [type={node.name.value}]"
+        if "BaseObject" in interface_names and "OOI" not in interface_names:
+            return f"An object must inherit both BaseObject and OOI (missing OOI) [type={node.name.value}]"
+
+        return ""
+
+    def validate_directive_definition_node(self, node: DirectiveDefinitionNode) -> str:
+        """Validate that directives are not defined in the schema."""
+        return (
+            f"A schema may only define a Type, Enum, Union, or Interface, not Directive "
+            f"[directive={node.name.value}]"
+        )
+
+    def validate_input_object_definition_node(self, node: InputObjectTypeDefinitionNode) -> str:
+        """Validate that inputs are not defined in the schema."""
+        return f"A schema may only define a Type, Enum, Union, or Interface, not Input [type={node.name.value}]"
+
+    def validate_scalar_type_definition_node(self, node: ScalarTypeDefinitionNode) -> str:
+        """Validate that scalars are not defined in the schema."""
+        return f"A schema may only define a Type, Enum, Union, or Interface, not Scalar [type={node.name.value}]"
+
     def validate_ooi_schema(self) -> None:
         """Look into the AST of the schema definition file to apply restrictions.
 
         References:
             - https://graphql-core-3.readthedocs.io/en/latest/modules/language.html
         """
-        # Check all definitions to apply validations
+        validators = [
+            (lambda x: issubclass(type(x), TypeDefinitionNode), self.validate_type_definition_node),
+            (lambda x: issubclass(type(x), UnionTypeDefinitionNode), self.validate_union_definition_node),
+            (lambda x: issubclass(type(x), ObjectTypeDefinitionNode), self.validate_object_type_definition_node),
+            (lambda x: issubclass(type(x), DirectiveDefinitionNode), self.validate_directive_definition_node),
+            (
+                lambda x: issubclass(type(x), InputObjectTypeDefinitionNode),
+                self.validate_input_object_definition_node,
+            ),
+            (lambda x: issubclass(type(x), ScalarTypeDefinitionNode), self.validate_scalar_type_definition_node),
+        ]
+
         for definition in self.ooi_schema_document.definitions:
-
-            if isinstance(definition, DirectiveDefinitionNode):
-                raise SchemaValidationException(
-                    f"Custom directive definitions are not allowed [directive={definition.name.value}]"
-                )
-
-            if isinstance(definition, ScalarTypeDefinitionNode):
-                raise SchemaValidationException(
-                    f"Custom scalar definitions are not allowed [type={definition.name.value}]"
-                )
-
-            if isinstance(definition, TypeDefinitionNode):
-                if definition.name.value in RESERVED_TYPE_NAMES:
-                    raise SchemaValidationException(
-                        f"Use of reserved type name is now allowed [type={definition.name.value}]"
-                    )
-
-            if isinstance(definition, ObjectTypeDefinitionNode):
-                interface_names = [interface.name.value for interface in definition.interfaces]
-                if "BaseObject" not in interface_names or "OOI" not in interface_names:
-                    raise SchemaValidationException(
-                        f"Object types must implement BaseObject and OOI [type={definition.name.value}]"
-                    )
+            for validator in validators:
+                if validator[0](definition):  # type: ignore
+                    if error_message := validator[1](definition):
+                        raise SchemaValidationException(error_message)
 
     @cached_property
     def full_schema(self) -> OOISchema:
