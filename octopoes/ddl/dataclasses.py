@@ -17,7 +17,7 @@ from graphql import (
 )
 from pydantic import create_model, BaseModel
 
-from octopoes.ddl.ddl import BaseSchema
+from octopoes.ddl.schema import CompleteSchema
 from octopoes.utils.dict_utils import flatten
 
 logger = getLogger(__name__)
@@ -91,7 +91,7 @@ class OOI(BaseObject):
 class DataclassGenerator:
     """Generates (Pydantic) dataclasses from a GraphQL schema."""
 
-    def __init__(self, schema: BaseSchema):
+    def __init__(self, schema: CompleteSchema):
         """Initialize instance."""
         self.schema = schema
         self.dataclasses: Dict[str, Type[BaseObject]] = {}

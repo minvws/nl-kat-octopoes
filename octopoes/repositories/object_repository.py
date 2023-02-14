@@ -69,7 +69,7 @@ class ObjectRepository:
         obj_data = self.rm_prefixes(self.xtdb_client.get_entity(primary_key))
 
         object_cls = self.dataclass_generator.dataclasses[obj_data["object_type"]]
-        graphql_cls: GraphQLObjectType = self.schema.hydrated_schema.schema.get_type(obj_data["object_type"])
+        graphql_cls: GraphQLObjectType = self.schema.api_schema.schema.get_type(obj_data["object_type"])
 
         for key, value in obj_data.items():
             if key in object_cls.get_natural_key_attrs() and self.dataclass_generator.is_field_foreign_key(
@@ -88,7 +88,7 @@ class ObjectRepository:
 
     def list_by_object_type(self, object_type: str) -> List[Dict[str, Any]]:
         """List all objects of a given type."""
-        type_info = self.schema.hydrated_schema.schema.get_type(object_type)
+        type_info = self.schema.api_schema.schema.get_type(object_type)
         query = ""
         if isinstance(type_info, GraphQLObjectType):
             query = (

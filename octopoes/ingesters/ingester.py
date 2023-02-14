@@ -38,7 +38,7 @@ class Ingester:  # pylint: disable=too-many-instance-attributes
 
         # Try to load the current_schema from XTDB
         self.current_schema = self.load_schema()
-        self.dataclass_generator = DataclassGenerator(self.current_schema.extended_schema)
+        self.dataclass_generator = DataclassGenerator(self.current_schema.complete_schema)
         self.setup_resolvers()
         self.object_repository = ObjectRepository(self.current_schema, self.dataclass_generator, self.xtdb_client)
 
@@ -46,7 +46,7 @@ class Ingester:  # pylint: disable=too-many-instance-attributes
         """Update the current_schema and update XTDB as well as in-memory structures."""
         self.current_schema = new_schema
         self.persist_schema()
-        self.dataclass_generator = DataclassGenerator(self.current_schema.extended_schema)
+        self.dataclass_generator = DataclassGenerator(self.current_schema.complete_schema)
         self.setup_resolvers()
         self.object_repository = ObjectRepository(self.current_schema, self.dataclass_generator, self.xtdb_client)
 
@@ -115,7 +115,7 @@ class Ingester:  # pylint: disable=too-many-instance-attributes
         if parent_obj and type_info.field_name in parent_obj:
             return self.object_repository.get(parent_obj[type_info.field_name])
 
-        # incoming relation
+        # backlink
         if parent_obj:
             return self.object_repository.list_by_incoming_relation(
                 parent_obj["primary_key"], type_info.return_type.of_type.name, kwargs["backlink"]
@@ -126,14 +126,14 @@ class Ingester:  # pylint: disable=too-many-instance-attributes
     def setup_resolvers(self) -> None:
         """Set resolvers for GraphQL schema."""
         # Set resolver for root OOI union type
-        self.current_schema.hydrated_schema.schema.query_type.fields["OOI"].resolve = self.resolve_graphql_type
+        self.current_schema.api_schema.schema.query_type.fields["OOI"].resolve = self.resolve_graphql_type
 
         # Setup type resolver for all union types
-        for union_type in self.current_schema.hydrated_schema.union_types:
+        for union_type in self.current_schema.api_schema.union_types:
             union_type.resolve_type = self.resolve_graphql_union
 
         # Setup resolvers for all fields
-        for object_type in self.current_schema.hydrated_schema.object_types:
+        for object_type in self.current_schema.api_schema.object_types:
             for field in object_type.fields.values():
                 real_type = field.type.of_type if getattr(field.type, "of_type", None) else field.type
                 if isinstance(real_type, GraphQLObjectType):
@@ -160,24 +160,6 @@ class Ingester:  # pylint: disable=too-many-instance-attributes
         # ingest bit configs
 
         # ingest normalizer outputs / origins
-        hostname = {
-            "object_type": "Hostname",
-            "network": {
-                "object_type": "Network",
-                "name": "internet",
-            },
-            "name": "lisser.tech",
-        }
-        origin = {
-            "object_type": "Origin",
-            "type": "declaration",
-            "source": hostname,
-            "method": "manual",
-            "results": [hostname],
-            "normalizer_id": "12345",
-        }
-        port_ = self.dataclass_generator.parse_obj(origin)
-        self.object_repository.save(port_)
 
         # wait for processing to complete
 

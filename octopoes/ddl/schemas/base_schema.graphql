@@ -1,4 +1,3 @@
-# Native Kat
 interface BaseObject {
   object_type: String!
   primary_key: ID!
