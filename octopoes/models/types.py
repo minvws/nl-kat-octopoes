@@ -38,7 +38,8 @@ from octopoes.models.ooi.findings import (
     CVEFindingType,
     CWEFindingType,
     RetireJSFindingType,
-    SnykFindingType, CAPECFindingType,
+    SnykFindingType,
+    CAPECFindingType,
 )
 from octopoes.models.ooi.monitoring import Incident, Application
 from octopoes.models.ooi.network import (
