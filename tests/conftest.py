@@ -1,8 +1,10 @@
 from enum import Enum
+from pathlib import Path
 
 import pytest
 
 from octopoes.ddl.dataclasses import OOI
+from octopoes.ddl.ddl import SchemaLoader
 
 
 class Color(Enum):
@@ -38,3 +40,8 @@ def animal():
 @pytest.fixture
 def zookeeper(animal):
     return ZooKeeper(name="Leslie", pet=animal)
+
+
+@pytest.fixture
+def schema_loader() -> SchemaLoader:
+    return SchemaLoader((Path(__file__).parent / "fixtures" / "schema_sample.graphql").read_text())

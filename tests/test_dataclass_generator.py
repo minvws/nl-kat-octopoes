@@ -4,9 +4,8 @@ from octopoes.ddl.dataclasses import DataclassGenerator
 from octopoes.ddl.ddl import SchemaLoader
 
 
-def test_generate_dataclasses_from_simple_schema():
-    schema_loader = SchemaLoader((Path(__file__).parent / "fixtures" / "schema_sample.graphql").read_text())
-    generator = DataclassGenerator(schema_loader.ooi_schema)
+def test_generate_dataclasses_from_simple_schema(schema_loader):
+    generator = DataclassGenerator(schema_loader.complete_schema)
 
     whiskers = generator.dataclasses["Animal"](name="Whiskers", color="red")
     assert whiskers.object_type == "Animal"
