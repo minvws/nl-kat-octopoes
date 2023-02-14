@@ -51,12 +51,6 @@ itest:
 	robot -d reports --variablefile tests/robot/variables.py:xtdb tests/robot || :
 	docker-compose -f docker-compose-base.yml -f .ci/docker-compose.yml down --remove-orphans
 
-itest-crux:
-	docker-compose -f docker-compose-base.yml -f .ci/docker-compose-crux.yml up -d --build
-	sleep 1
-	robot -d reports --variablefile tests/robot/variables.py:crux tests/robot || :
-	docker-compose -f docker-compose-base.yml -f .ci/docker-compose-crux.yml down --remove-orphans
-
 update-requirements: ## Update the lock file and export the requirements to requirements.txt
 	poetry lock
 	poetry export --output requirements.txt --without-hashes && \

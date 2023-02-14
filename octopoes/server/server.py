@@ -10,6 +10,7 @@ from fastapi import FastAPI, status, Body
 from fastapi.responses import PlainTextResponse, HTMLResponse, JSONResponse
 from graphql import print_schema, graphql_sync
 from pydantic import BaseModel, Field
+from requests import HTTPError
 
 from octopoes.context.context import AppContext
 from octopoes.ingesters.ingester import Ingester
@@ -124,6 +125,13 @@ class Server:
 
         for service in self.ctx.services.__dict__.values():
             response.externals[service.name] = service.is_healthy()
+
+        for ingester_id, ingester in self.ingesters.items():
+            try:
+                ingester.xtdb_client.status()
+                response.externals[ingester_id] = True
+            except HTTPError:
+                response.externals[ingester_id] = False
 
         return response
 

@@ -34,7 +34,7 @@ class Ingester:  # pylint: disable=too-many-instance-attributes
         self.thread: Optional[ThreadRunner] = None
         self.stop_event: threading.Event = self.ctx.stop_event
 
-        self.xtdb_client = XTDBHTTPClient(f"{self.ctx.config.dsn_xtdb}/_dev")
+        self.xtdb_client = XTDBHTTPClient(f"{self.ctx.config.xtdb_uri}/_dev")
 
         # Try to load the current_schema from XTDB
         self.current_schema = self.load_schema()
@@ -146,7 +146,7 @@ class Ingester:  # pylint: disable=too-many-instance-attributes
         logger.info("Ingesting... %s", self.ingester_id)
 
         # create node in XTDB
-        XTDBHTTPClient(f"{self.ctx.config.dsn_xtdb}").create_node(self.ingester_id)
+        XTDBHTTPClient(f"{self.ctx.config.xtdb_uri}").create_node(self.ingester_id)
 
         # load new current_schema
         new_schema = SchemaLoader()
