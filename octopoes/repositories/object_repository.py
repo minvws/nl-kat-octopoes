@@ -1,4 +1,4 @@
-"""Repository to save/looad Octopoes objects to XTDB."""
+"""Repository to save/load Octopoes objects to XTDB."""
 import json
 import logging
 from datetime import timezone, datetime
