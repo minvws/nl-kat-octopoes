@@ -133,6 +133,8 @@ class Server:
             except HTTPError:
                 response.externals[ingester_id] = False
 
+        response.healthy = all(response.externals.values())
+
         return response
 
     def get_ingesters(self) -> Any:
