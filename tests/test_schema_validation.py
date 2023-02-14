@@ -33,6 +33,11 @@ TEST_CASES = [
     ),
     ("schema_no_union_with_u.graphql", "Self-defined unions must start with a U [type=Animals]"),
     ("schema_no_pascalcase.graphql", "Object types must follow PascalCase conventions [type=zooKeeper]"),
+    (
+        "schema_incomplete_interface.graphql",
+        "The BaseObject and OOI interfaces must be implemented properly "
+        "[type=ZooKeeper primary_key^object_type^human_readable]",
+    ),
 ]
 
 
