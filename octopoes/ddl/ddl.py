@@ -132,6 +132,14 @@ class SchemaLoader:
                         f"Natural keys must be defined as fields "
                         f"[type={node.name.value}, natural_key={natural_key}]"
                     )
+
+            # Validate that the BaseObject and OOI interfaces are properly implemented
+            if not {"primary_key", "object_type", "human_readable"}.issubset(fields):
+                return (
+                    f"The BaseObject and OOI interfaces must be implemented properly "
+                    f"[type={node.name.value} primary_key^object_type^human_readable]"
+                )
+
         return ""
 
     def validate_union_definition_node(self, node: UnionTypeDefinitionNode) -> str:
@@ -174,7 +182,6 @@ class SchemaLoader:
             - https://graphql-core-3.readthedocs.io/en/latest/modules/language.html
         """
         validators = [
-            (lambda x: issubclass(type(x), TypeDefinitionNode), self.validate_type_definition_node),
             (lambda x: issubclass(type(x), UnionTypeDefinitionNode), self.validate_union_definition_node),
             (lambda x: issubclass(type(x), ObjectTypeDefinitionNode), self.validate_object_type_definition_node),
             (lambda x: issubclass(type(x), DirectiveDefinitionNode), self.validate_directive_definition_node),
@@ -182,6 +189,7 @@ class SchemaLoader:
                 lambda x: issubclass(type(x), InputObjectTypeDefinitionNode),
                 self.validate_input_object_definition_node,
             ),
+            (lambda x: issubclass(type(x), TypeDefinitionNode), self.validate_type_definition_node),
             (lambda x: issubclass(type(x), ScalarTypeDefinitionNode), self.validate_scalar_type_definition_node),
         ]
 
