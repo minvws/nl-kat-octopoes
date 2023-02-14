@@ -1,27 +1,23 @@
-"""GraphQL DDL module."""
+"""KAT GraphQL DDL module."""
 from __future__ import annotations
 
 import re
 from functools import cached_property
 from logging import getLogger
 from pathlib import Path
-from typing import cast, Optional
+from typing import Optional
 
 from graphql import (
     build_schema,
     GraphQLObjectType,
-    GraphQLInterfaceType,
     GraphQLSchema,
     GraphQLUnionType,
     GraphQLField,
     GraphQLList,
-    GraphQLEnumType,
     GraphQLString,
-    GraphQLID,
     extend_schema,
     parse,
     GraphQLArgument,
-    GraphQLNonNull,
     DocumentNode,
     DirectiveDefinitionNode,
     ObjectTypeDefinitionNode,
@@ -32,6 +28,8 @@ from graphql import (
     EnumTypeDefinitionNode,
     InterfaceTypeDefinitionNode,
 )
+
+from octopoes.ddl.schema import BaseSchema, CompleteSchema
 
 logger = getLogger(__name__)
 
@@ -57,20 +55,6 @@ BUILTIN_TYPES = {
     "__DirectiveLocation",
 }
 
-BUILTIN_DIRECTIVES = {
-    "skip",
-    "include",
-    "deprecated",
-    "specifiedBy",
-}
-
-KAT_DIRECTIVES = {
-    "constraint",
-    "natural_key",
-    "format",
-    "reverse_name",
-}
-
 RESERVED_TYPE_NAMES = {
     "Query",
     "Mutation",
@@ -81,60 +65,18 @@ RESERVED_TYPE_NAMES = {
 
 BASE_SCHEMA_FILE = Path(__file__).parent / "schemas" / "base_schema.graphql"
 OOI_SCHEMA_FILE = Path(__file__).parent / "schemas" / "ooi_schema.graphql"
-
-
-class OOISchema:
-    """Wrapper for a KAT GraphQLSchema."""
-
-    def __init__(self, schema: GraphQLSchema) -> None:
-        """Initialize instance."""
-        self.schema = schema
-
-    @property
-    def base_object_type(self) -> GraphQLInterfaceType:
-        """Return the BaseObject type."""
-        return cast(GraphQLInterfaceType, self.schema.type_map["BaseObject"])
-
-    @property
-    def ooi_type(self) -> GraphQLInterfaceType:
-        """Return the OOI type."""
-        return cast(GraphQLInterfaceType, self.schema.type_map["OOI"])
-
-    @property
-    def object_types(self) -> list[GraphQLObjectType]:
-        """Return all object types."""
-        return [
-            t
-            for t in self.schema.type_map.values()
-            if isinstance(t, GraphQLObjectType) and not t.name.startswith("__")
-        ]
-
-    @property
-    def union_types(self) -> list[GraphQLUnionType]:
-        """Return all union types."""
-        return [
-            t for t in self.schema.type_map.values() if isinstance(t, GraphQLUnionType) and not t.name.startswith("__")
-        ]
-
-
-class HydratedSchema(OOISchema):
-    """Wrapper for a KAT GraphQLSchema with reverse fields linked, and Query type added."""
-
-    @property
-    def ooi_union_type(self) -> GraphQLUnionType:
-        """Return the OOI union type."""
-        return cast(GraphQLUnionType, self.schema.type_map["UOOI"])
+COMPLETE_SCHEMA_FILE = Path(__file__).parent / "schemas" / "complete_schema.graphql"
 
 
 class SchemaLoader:
-    """Loads an OOI schema definition to validate and calculate derived schemas.
+    """Load an OOI schema definition to validate and calculate derived schemas.
 
-    Initialized with an OOI schema definition.
+    Initialized with an OOI schema definition string.
     Derived schemas:
     - base_schema: The base schema, which the OOI schema extends
     - ooi_schema: The OOI schema, which is validated
-    - full_schema: The OOI schema, extended with KAT specific types
-    - hydrated_schema: The full schema, where reverse fields are linked. Extended with Query type.
+    - complete_schema: The OOI schema, extended with KAT specific types
+    - api_schema: The full schema, where reverse fields are linked. Extended with Query type.
       Meant to expose to API
     """
 
@@ -146,9 +88,9 @@ class SchemaLoader:
         self.validate_ooi_schema()
 
     @cached_property
-    def base_schema(self) -> OOISchema:
+    def base_schema(self) -> BaseSchema:
         """Return and cache the base schema."""
-        return OOISchema(build_schema(BASE_SCHEMA_FILE.read_text()))
+        return BaseSchema(build_schema(BASE_SCHEMA_FILE.read_text()))
 
     @cached_property
     def ooi_schema_document(self) -> DocumentNode:
@@ -156,9 +98,9 @@ class SchemaLoader:
         return parse(self.ooi_schema_definition)
 
     @cached_property
-    def ooi_schema(self) -> OOISchema:
+    def ooi_schema(self) -> BaseSchema:
         """Load the schema from disk."""
-        return OOISchema(extend_schema(self.base_schema.schema, self.ooi_schema_document))
+        return BaseSchema(extend_schema(self.base_schema.schema, self.ooi_schema_document))
 
     def validate_type_definition_node(self, node: TypeDefinitionNode) -> str:
         """Validate type definitions in general."""
@@ -250,54 +192,57 @@ class SchemaLoader:
                         raise SchemaValidationException(error_message)
 
     @cached_property
-    def full_schema(self) -> OOISchema:
-        """Build the full schema.
-
-        Combines all concrete types into a single union type.
-        Defines the root query type, based on above union type.
-        """
-        # OOI Union = all object types that implement OOI
-        ooi_union = GraphQLUnionType("UOOI", types=self.ooi_schema.object_types)
-
-        # Construct Scan Profile Type
-        scan_level = GraphQLEnumType("ScanLevel", values={"L0": 0, "L1": 1, "L2": 2, "L3": 3, "L4": 4})
-        scan_profile_type = GraphQLEnumType(
-            "ScanProfileType", values={"empty": "empty", "declared": "declared", "inherited": "inherited"}
-        )
-        scan_profile = GraphQLObjectType(
-            "ScanProfile",
-            fields={
-                "object_type": GraphQLField(GraphQLNonNull(GraphQLString)),
-                "primary_key": GraphQLField(
-                    GraphQLNonNull(
-                        GraphQLID,
-                    ),
-                    args={"natural_key": GraphQLArgument(GraphQLList(GraphQLString), default_value=["ooi"])},
-                ),
-                "human_readable": GraphQLField(
-                    GraphQLNonNull(GraphQLString), args={"format": GraphQLArgument(GraphQLString, default_value="")}
-                ),
-                "type": GraphQLField(scan_profile_type),
-                "level": GraphQLField(scan_level),
-                "ooi": GraphQLField(ooi_union),
-            },
-            interfaces=[self.ooi_schema.base_object_type],
-        )
-
-        full_schema_kwargs = self.ooi_schema.schema.to_kwargs()
-        full_schema_kwargs["types"] = full_schema_kwargs["types"] + (ooi_union, scan_profile)
-
-        return OOISchema(GraphQLSchema(**full_schema_kwargs))
+    def complete_schema_document(self) -> DocumentNode:
+        """Return and cache the base schema."""
+        return parse(COMPLETE_SCHEMA_FILE.read_text())
 
     @cached_property
-    def hydrated_schema(self) -> HydratedSchema:
-        """Build the hydrated schema."""
-        # Construct Query Type
-        ooi_union = self.full_schema.schema.type_map["UOOI"]
-        query = GraphQLObjectType("Query", fields={"OOI": GraphQLField(GraphQLList(ooi_union))})
+    def complete_schema(self) -> CompleteSchema:
+        """Build the complete schema by adding Octopoes default concrete, like Origin and ScanProfile.
 
-        hydrated_schema_kwargs = self.full_schema.schema.to_kwargs()
+        Combine all concrete types into a single union type.
+        Load the complete schema from file.
+        """
+        # Create a new GraphQLSchema including OOI Union = all object types that implement OOI
+        ooi_union = GraphQLUnionType("UOOI", types=self.ooi_schema.object_types)
+
+        complete_schema_kwargs = self.ooi_schema.schema.to_kwargs()
+        complete_schema_kwargs["types"] += (ooi_union,)
+
+        complete_schema = extend_schema(GraphQLSchema(**complete_schema_kwargs), self.complete_schema_document)
+
+        return CompleteSchema(complete_schema)
+
+    @cached_property
+    def api_schema(self) -> CompleteSchema:
+        """Construct the hydrated schema by adding backlinks and Query/Mutation types."""
+        # Create backlinks
+        for type_ in self.complete_schema.object_types:
+            for field_name, field in type_.fields.items():
+
+                if getattr(field.type, "of_type", None) is None:
+                    continue
+
+                target_field_type = field.type.of_type
+
+                if not isinstance(target_field_type, GraphQLObjectType):
+                    continue
+
+                if field.args.get("backlink", None):
+                    continue
+
+                target_field_type.fields[field.args["reverse_name"].default_value] = GraphQLField(
+                    GraphQLList(type_), {"backlink": GraphQLArgument(GraphQLString, default_value=field_name)}
+                )
+
+        # Construct Query Type
+        query_fields = {type_.name: GraphQLField(GraphQLList(type_)) for type_ in self.complete_schema.object_types}
+        query_fields["OOI"] = GraphQLField(GraphQLList(self.complete_schema.ooi_union_type))
+        query = GraphQLObjectType("Query", fields=query_fields)
+
+        # Construct Mutation Type
+        hydrated_schema_kwargs = self.complete_schema.schema.to_kwargs()
         hydrated_schema_kwargs["query"] = query
         hydrated_schema_kwargs["types"] = hydrated_schema_kwargs["types"] + (query,)
 
-        return HydratedSchema(GraphQLSchema(**hydrated_schema_kwargs))
+        return CompleteSchema(GraphQLSchema(**hydrated_schema_kwargs))

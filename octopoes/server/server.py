@@ -6,7 +6,7 @@ from string import Template
 from typing import Any, Dict, Optional, List
 
 import uvicorn
-from fastapi import FastAPI, status
+from fastapi import FastAPI, status, Body
 from fastapi.responses import PlainTextResponse, HTMLResponse, JSONResponse
 from graphql import print_schema, graphql_sync
 from pydantic import BaseModel, Field
@@ -95,6 +95,21 @@ class Server:
             status_code=200,
         )
 
+        self.api.add_api_route(
+            path="/{ingester_id}/objects",
+            endpoint=self.post_object,
+            methods=["POST"],
+            response_class=JSONResponse,
+            status_code=200,
+            openapi_extra={
+                "requestBody": {
+                    "examples": {
+                        "test": '{"name": "test", "description": "test"}',
+                    }
+                }
+            },
+        )
+
     def root(self) -> Any:
         """Root endpoint."""
         return None
@@ -121,7 +136,7 @@ class Server:
         if ingester_id not in self.ingesters:
             return status.HTTP_404_NOT_FOUND
 
-        return print_schema(self.ingesters[ingester_id].current_schema.hydrated_schema.schema)
+        return print_schema(self.ingesters[ingester_id].current_schema.api_schema.schema)
 
     def get_object(self, ingester_id: str, object_id: str) -> Any:
         """Get an object."""
@@ -146,8 +161,34 @@ class Server:
         if ingester_id not in self.ingesters:
             return status.HTTP_404_NOT_FOUND
 
-        result = graphql_sync(self.ingesters[ingester_id].current_schema.hydrated_schema.schema, request_body.query)
+        result = graphql_sync(self.ingesters[ingester_id].current_schema.api_schema.schema, request_body.query)
         return result.formatted
+
+    def post_object(
+        self,
+        ingester_id: str,
+        object_data: Dict[str, Any] = Body(
+            examples={
+                "Network": {
+                    "summary": "Network",
+                    "description": "Create a network object.",
+                    "value": {
+                        "object_type": "Network",
+                        "name": "TestNetwork",
+                    },
+                }
+            },
+        ),
+    ) -> Any:
+        """Post an object."""
+        if ingester_id not in self.ingesters:
+            return status.HTTP_404_NOT_FOUND
+
+        ingester = self.ingesters[ingester_id]
+        obj = ingester.dataclass_generator.parse_obj(object_data)
+        ingester.object_repository.save(obj)
+
+        return 200
 
     def run(self) -> None:
         """Run the server."""
