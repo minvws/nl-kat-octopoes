@@ -3,7 +3,7 @@
 import os
 from pathlib import Path
 
-from pydantic import BaseSettings
+from pydantic import BaseSettings, AnyHttpUrl
 
 
 class Settings(BaseSettings):
@@ -20,9 +20,8 @@ class Settings(BaseSettings):
     # Application settings
 
     # External services settings
-    dsn_katalogus: str = "http://katalogus:8000/"
-    dsn_xtdb: str = "http://xtdb:3000/_xtdb"
-    dsn_rabbitmq: str = "amqp://guest:guest@rabbitmq:5672/kat"
+    katalogus_uri: AnyHttpUrl = "http://katalogus:8000/"  # type: ignore
+    xtdb_uri: AnyHttpUrl = "http://xtdb:3000/_xtdb"  # type: ignore
 
     class Config:
         """Settings configuration."""

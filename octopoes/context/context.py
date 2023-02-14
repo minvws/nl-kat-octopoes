@@ -11,6 +11,14 @@ from octopoes.connectors.services.katalogus import Katalogus
 from octopoes.version import version
 
 
+def get_katalogus(uri: str) -> Katalogus:
+    """Katalogus client factory."""
+    return Katalogus(
+        host=uri,
+        source=f"octopoes/{version}",
+    )
+
+
 class AppContext:
     """AppContext allows shared data between modules.
 
@@ -39,10 +47,7 @@ class AppContext:
         except FileNotFoundError:
             self.logger.warning("No log config found at: %s", self.config.log_cfg)
 
-        self.katalogus_svc = Katalogus(
-            host=self.config.dsn_katalogus,
-            source=f"octopoes/{version}",
-        )
+        self.katalogus_svc = get_katalogus(self.config.katalogus_uri)
 
         # Register external services, SimpleNamespace allows us to use dot
         # notation

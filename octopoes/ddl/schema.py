@@ -48,6 +48,10 @@ class BaseSchema:
             t for t in self.schema.type_map.values() if isinstance(t, GraphQLUnionType) and not t.name.startswith("__")
         ]
 
+    def get_object_type(self, name: str) -> GraphQLObjectType:
+        """Return the object type with the given name."""
+        return cast(GraphQLObjectType, self.schema.type_map[name])
+
 
 class OOISchema(BaseSchema):
     """Contains the user-configured OOI schema.

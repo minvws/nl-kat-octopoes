@@ -29,7 +29,7 @@ from graphql import (
     InterfaceTypeDefinitionNode,
 )
 
-from octopoes.ddl.schema import BaseSchema, CompleteSchema
+from octopoes.ddl.schema import BaseSchema, CompleteSchema, APISchema
 
 logger = getLogger(__name__)
 
@@ -222,7 +222,7 @@ class SchemaLoader:
         return CompleteSchema(complete_schema)
 
     @cached_property
-    def api_schema(self) -> CompleteSchema:
+    def api_schema(self) -> APISchema:
         """Construct the hydrated schema by adding backlinks and Query/Mutation types."""
         # Create backlinks
         for type_ in self.complete_schema.object_types:
@@ -253,4 +253,4 @@ class SchemaLoader:
         hydrated_schema_kwargs["query"] = query
         hydrated_schema_kwargs["types"] = hydrated_schema_kwargs["types"] + (query,)
 
-        return CompleteSchema(GraphQLSchema(**hydrated_schema_kwargs))
+        return APISchema(GraphQLSchema(**hydrated_schema_kwargs))
