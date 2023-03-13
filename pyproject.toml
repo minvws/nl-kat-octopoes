@@ -60,7 +60,7 @@ tldextract = "^3.4.0"
 [tool.poetry.group.dev.dependencies]
 requests-mock = "^1.10.0"
 vulture = "^2.6"
-mypy = "^0.982"
+mypy = "^1.1"
 pylint = "^2.15.4"
 black = "^22.10.0"
 flake8 = "^5.0.4"
