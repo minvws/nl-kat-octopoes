@@ -1,3 +1,7 @@
+**This repository has been archived because all repositories of the individual
+OpenKAT modules have been merged in the main OpenKAT repository at
+https://github.com/minvws/nl-kat-coordination**
+
 # Octopoes
 
 Octopoes is KAT's knowledge-graph. It stores the knowledge KAT has gathered about its domain. As Octopoes uses [XTDB](https://xtdb.com) for bi-temporal data-storage, Octopoes keeps the current state of the knowledge-graph, as well as a complete, queryable history of the knowledge-graph.
